@@ -80,24 +80,24 @@ ensemble_val_entropy = [3.2664268, 3.1901946, 3.282113, 3.2791314, 3.2842135, 3.
 
 # ######## COMPARE Without RELU
 # ## Saving based on MSE trial corresponding
-ensemble_preds = np.array([21.871881, 22.994259, 21.404873, 24.161356, 20.344296, 18.26764, 17.008202, 20.5765, 20.907486, 22.900982, 21.352657, 24.025215, 26.75854, 22.287552, 20.385773, 19.811897, 20.100632, 25.690357, 23.530666, 20.15261, 19.70316])
-true_values = np.array([13.0, 30.0, 13.0, 29.0, 28.0, 14.0, 13.0, 30.0, 27.0, 16.0, 17.0, 29.0, 29.0, 18.0, 16.0, 28.0, 28.0, 27.0, 19.0, 11.0, 20.0])
-ensemble_pred_probs = np.array([0.05401609, 0.054374292, 0.051884066, 0.0534666, 0.052959383, 0.054478258, 0.0616764, 0.053766366, 0.05520906, 0.053406112, 0.053683747, 0.054506864, 0.041968577, 0.055615894, 0.051837675, 0.05042001, 0.054127503, 0.05035473, 0.047393724, 0.053855482, 0.051850203])
-ensemble_pred_log_probs = np.array([-2.9184732, -2.9118638, -2.9587436, -2.928698, -2.93823, -2.9099536, -2.7858539, -2.9231071, -2.8966281, -2.92983, -2.924645, -2.9094286, -3.170834, -2.8892863, -2.959638, -2.9873672, -2.9164128, -2.9886627, -3.0492654, -2.921451, -2.9593964])
-ensemble_true_probs = np.array([0.026253417, 0.0344675, 0.028548133, 0.0433278, 0.031598244, 0.04596998, 0.050902277, 0.024002641, 0.038694177, 0.034854945, 0.045221772, 0.04326451, 0.04081788, 0.046517756, 0.04406813, 0.029516041, 0.030477865, 0.049671423, 0.04100283, 0.025103232, 0.05181164])
-ensemble_true_log_probs = np.array([-3.639959, -3.3677385, -3.5561638, -3.1389608, -3.4546537, -3.0797668, -2.9778476, -3.7295914, -3.2520661, -3.3565602, -3.0961766, -3.1404226, -3.198635, -3.0679212, -3.1220183, -3.5228214, -3.4907546, -3.0023255, -3.1941142, -3.6847587, -2.9601405])
-ensemble_val_stddev = [7.3856187, 7.336965, 7.6891117, 7.4615226, 7.532986, 7.322963, 6.4683137, 7.4199214, 7.2260284, 7.469976, 7.4313426, 7.31912, 9.505735, 7.1731706, 7.6959925, 7.912381, 7.370418, 7.922638, 8.41762, 7.4076447, 7.6941304]
-ensemble_val_entropy = [3.4184732, 3.4118638, 3.4587436, 3.428698, 3.43823, 3.4099536, 3.2858539, 3.4231071, 3.3966281, 3.42983, 3.424645, 3.4094286, 3.670834, 3.3892863, 3.459638, 3.4873672, 3.4164128, 3.4886627, 3.5492654, 3.421451, 3.4593964]
+# ensemble_preds = np.array([21.871881, 22.994259, 21.404873, 24.161356, 20.344296, 18.26764, 17.008202, 20.5765, 20.907486, 22.900982, 21.352657, 24.025215, 26.75854, 22.287552, 20.385773, 19.811897, 20.100632, 25.690357, 23.530666, 20.15261, 19.70316])
+# true_values = np.array([13.0, 30.0, 13.0, 29.0, 28.0, 14.0, 13.0, 30.0, 27.0, 16.0, 17.0, 29.0, 29.0, 18.0, 16.0, 28.0, 28.0, 27.0, 19.0, 11.0, 20.0])
+# ensemble_pred_probs = np.array([0.05401609, 0.054374292, 0.051884066, 0.0534666, 0.052959383, 0.054478258, 0.0616764, 0.053766366, 0.05520906, 0.053406112, 0.053683747, 0.054506864, 0.041968577, 0.055615894, 0.051837675, 0.05042001, 0.054127503, 0.05035473, 0.047393724, 0.053855482, 0.051850203])
+# ensemble_pred_log_probs = np.array([-2.9184732, -2.9118638, -2.9587436, -2.928698, -2.93823, -2.9099536, -2.7858539, -2.9231071, -2.8966281, -2.92983, -2.924645, -2.9094286, -3.170834, -2.8892863, -2.959638, -2.9873672, -2.9164128, -2.9886627, -3.0492654, -2.921451, -2.9593964])
+# ensemble_true_probs = np.array([0.026253417, 0.0344675, 0.028548133, 0.0433278, 0.031598244, 0.04596998, 0.050902277, 0.024002641, 0.038694177, 0.034854945, 0.045221772, 0.04326451, 0.04081788, 0.046517756, 0.04406813, 0.029516041, 0.030477865, 0.049671423, 0.04100283, 0.025103232, 0.05181164])
+# ensemble_true_log_probs = np.array([-3.639959, -3.3677385, -3.5561638, -3.1389608, -3.4546537, -3.0797668, -2.9778476, -3.7295914, -3.2520661, -3.3565602, -3.0961766, -3.1404226, -3.198635, -3.0679212, -3.1220183, -3.5228214, -3.4907546, -3.0023255, -3.1941142, -3.6847587, -2.9601405])
+# ensemble_val_stddev = [7.3856187, 7.336965, 7.6891117, 7.4615226, 7.532986, 7.322963, 6.4683137, 7.4199214, 7.2260284, 7.469976, 7.4313426, 7.31912, 9.505735, 7.1731706, 7.6959925, 7.912381, 7.370418, 7.922638, 8.41762, 7.4076447, 7.6941304]
+# ensemble_val_entropy = [3.4184732, 3.4118638, 3.4587436, 3.428698, 3.43823, 3.4099536, 3.2858539, 3.4231071, 3.3966281, 3.42983, 3.424645, 3.4094286, 3.670834, 3.3892863, 3.459638, 3.4873672, 3.4164128, 3.4886627, 3.5492654, 3.421451, 3.4593964]
 
-# ## Saving based on NLL trial corresponding
-ensemble_preds = np.array([22.333923, 22.564854, 22.743055, 24.888329, 18.829685, 17.443573, 19.031185, 22.386452, 20.235817, 24.55627, 22.29688, 24.12427, 24.64392, 23.174105, 19.419403, 18.065504, 20.477493, 26.195766, 21.356613, 21.81388, 18.845934])
-true_values = np.array([13.0, 30.0, 13.0, 29.0, 28.0, 14.0, 13.0, 30.0, 27.0, 16.0, 17.0, 29.0, 29.0, 18.0, 16.0, 28.0, 28.0, 27.0, 19.0, 11.0, 20.0])
-ensemble_pred_probs = np.array([0.0663955, 0.06329531, 0.065292224, 0.0721412, 0.06477086, 0.06470132, 0.06621025, 0.061680447, 0.07042855, 0.07004115, 0.062628865, 0.07296277, 0.071477085, 0.06417091, 0.06376194, 0.06526032, 0.070284314, 0.06974646, 0.061029017, 0.06430308, 0.06623124])
-ensemble_pred_log_probs = np.array([-2.712126, -2.759944, -2.7288823, -2.62913, -2.7368994, -2.7379737, -2.71492, -2.7857883, -2.6531565, -2.6586723, -2.770529, -2.617806, -2.6383784, -2.7462053, -2.7525988, -2.729371, -2.6552067, -2.6628885, -2.7964058, -2.7441478, -2.714603])
-ensemble_true_probs = np.array([0.019866815, 0.031564444, 0.018311491, 0.054719236, 0.021381022, 0.055358388, 0.04011989, 0.030850379, 0.03452271, 0.02266407, 0.04432259, 0.04902657, 0.05271052, 0.045386504, 0.054916702, 0.017424531, 0.029205335, 0.069060445, 0.057189286, 0.014076998, 0.065026715])
-ensemble_true_log_probs = np.array([-3.9187045, -3.455724, -4.0002265, -2.90554, -3.8452516, -2.893927, -3.215883, -3.4786062, -3.366138, -3.7869744, -3.1162608, -3.0153928, -2.9429402, -3.0925405, -2.9019377, -4.049876, -3.5334039, -2.6727731, -2.8613887, -4.263213, -2.7329571])
-ensemble_val_stddev = [6.0085745, 6.302872, 6.110104, 5.5300193, 6.1592855, 6.1659064, 6.0253854, 6.467889, 5.6644964, 5.695827, 6.3699427, 5.467751, 5.5814013, 6.2168703, 6.256747, 6.1130905, 5.676121, 5.719892, 6.536927, 6.204094, 6.0234756]
-ensemble_val_entropy = [3.212126, 3.259944, 3.2288823, 3.12913, 3.2368994, 3.2379737, 3.21492, 3.2857883, 3.1531565, 3.1586723, 3.270529, 3.117806, 3.1383784, 3.2462053, 3.2525988, 3.229371, 3.1552067, 3.1628885, 3.2964058, 3.2441478, 3.214603]
+# # ## Saving based on NLL trial corresponding
+# ensemble_preds = np.array([22.333923, 22.564854, 22.743055, 24.888329, 18.829685, 17.443573, 19.031185, 22.386452, 20.235817, 24.55627, 22.29688, 24.12427, 24.64392, 23.174105, 19.419403, 18.065504, 20.477493, 26.195766, 21.356613, 21.81388, 18.845934])
+# true_values = np.array([13.0, 30.0, 13.0, 29.0, 28.0, 14.0, 13.0, 30.0, 27.0, 16.0, 17.0, 29.0, 29.0, 18.0, 16.0, 28.0, 28.0, 27.0, 19.0, 11.0, 20.0])
+# ensemble_pred_probs = np.array([0.0663955, 0.06329531, 0.065292224, 0.0721412, 0.06477086, 0.06470132, 0.06621025, 0.061680447, 0.07042855, 0.07004115, 0.062628865, 0.07296277, 0.071477085, 0.06417091, 0.06376194, 0.06526032, 0.070284314, 0.06974646, 0.061029017, 0.06430308, 0.06623124])
+# ensemble_pred_log_probs = np.array([-2.712126, -2.759944, -2.7288823, -2.62913, -2.7368994, -2.7379737, -2.71492, -2.7857883, -2.6531565, -2.6586723, -2.770529, -2.617806, -2.6383784, -2.7462053, -2.7525988, -2.729371, -2.6552067, -2.6628885, -2.7964058, -2.7441478, -2.714603])
+# ensemble_true_probs = np.array([0.019866815, 0.031564444, 0.018311491, 0.054719236, 0.021381022, 0.055358388, 0.04011989, 0.030850379, 0.03452271, 0.02266407, 0.04432259, 0.04902657, 0.05271052, 0.045386504, 0.054916702, 0.017424531, 0.029205335, 0.069060445, 0.057189286, 0.014076998, 0.065026715])
+# ensemble_true_log_probs = np.array([-3.9187045, -3.455724, -4.0002265, -2.90554, -3.8452516, -2.893927, -3.215883, -3.4786062, -3.366138, -3.7869744, -3.1162608, -3.0153928, -2.9429402, -3.0925405, -2.9019377, -4.049876, -3.5334039, -2.6727731, -2.8613887, -4.263213, -2.7329571])
+# ensemble_val_stddev = [6.0085745, 6.302872, 6.110104, 5.5300193, 6.1592855, 6.1659064, 6.0253854, 6.467889, 5.6644964, 5.695827, 6.3699427, 5.467751, 5.5814013, 6.2168703, 6.256747, 6.1130905, 5.676121, 5.719892, 6.536927, 6.204094, 6.0234756]
+# ensemble_val_entropy = [3.212126, 3.259944, 3.2288823, 3.12913, 3.2368994, 3.2379737, 3.21492, 3.2857883, 3.1531565, 3.1586723, 3.270529, 3.117806, 3.1383784, 3.2462053, 3.2525988, 3.229371, 3.1552067, 3.1628885, 3.2964058, 3.2441478, 3.214603]
 
 ################### ANALYSIS PLOTS ###################
 # plt.clf()
@@ -130,58 +130,58 @@ ensemble_val_entropy = [3.212126, 3.259944, 3.2288823, 3.12913, 3.2368994, 3.237
 
 
 ################### DEFERING ###################
-defer_based_on = ensemble_true_probs
-title = 'ensemble_true_probs'
-defer_based_on = ensemble_val_stddev
-title = 'ensemble_val_stddev'
+# defer_based_on = ensemble_true_probs
+# title = 'ensemble_true_probs'
+# defer_based_on = ensemble_val_stddev
+# title = 'ensemble_val_stddev'
 
-defered_rmse_list, non_defered_rmse_list = [], []
-for i in range(ensemble_preds.shape[0]+1):
-	print('\n{} datapoints deferred'.format(i))
-	if title=='ensemble_true_probs':
-		if i!=0:
-			defered_rmse = mean_squared_error(true_values[np.argsort(defer_based_on)][:i], ensemble_preds[np.argsort(defer_based_on)][:i], squared=False)
-		else:
-			defered_rmse = 0
-		defered_rmse_list.append(defered_rmse)
+# defered_rmse_list, non_defered_rmse_list = [], []
+# for i in range(ensemble_preds.shape[0]+1):
+# 	print('\n{} datapoints deferred'.format(i))
+# 	if title=='ensemble_true_probs':
+# 		if i!=0:
+# 			defered_rmse = mean_squared_error(true_values[np.argsort(defer_based_on)][:i], ensemble_preds[np.argsort(defer_based_on)][:i], squared=False)
+# 		else:
+# 			defered_rmse = 0
+# 		defered_rmse_list.append(defered_rmse)
 
-		if i!=ensemble_preds.shape[0]:
-			non_defered_rmse = mean_squared_error(true_values[np.argsort(defer_based_on)][i:], ensemble_preds[np.argsort(defer_based_on)][i:], squared=False)
-		else:
-			non_defered_rmse = 0
-		non_defered_rmse_list.append(non_defered_rmse)
+# 		if i!=ensemble_preds.shape[0]:
+# 			non_defered_rmse = mean_squared_error(true_values[np.argsort(defer_based_on)][i:], ensemble_preds[np.argsort(defer_based_on)][i:], squared=False)
+# 		else:
+# 			non_defered_rmse = 0
+# 		non_defered_rmse_list.append(non_defered_rmse)
 
-	elif title=='ensemble_val_stddev':
-		if i==ensemble_preds.shape[0]:
-			defered_rmse = mean_squared_error(true_values, ensemble_preds, squared=False)
-		elif i==0:
-			defered_rmse = 0
-		else:
-			defered_rmse = mean_squared_error(true_values[np.argsort(defer_based_on)][-i:], ensemble_preds[np.argsort(defer_based_on)][-i:], squared=False)
-		defered_rmse_list.append(defered_rmse)
+# 	elif title=='ensemble_val_stddev':
+# 		if i==ensemble_preds.shape[0]:
+# 			defered_rmse = mean_squared_error(true_values, ensemble_preds, squared=False)
+# 		elif i==0:
+# 			defered_rmse = 0
+# 		else:
+# 			defered_rmse = mean_squared_error(true_values[np.argsort(defer_based_on)][-i:], ensemble_preds[np.argsort(defer_based_on)][-i:], squared=False)
+# 		defered_rmse_list.append(defered_rmse)
 
-		if i==0:
-			non_defered_rmse = mean_squared_error(true_values, ensemble_preds, squared=False)
-		elif i==ensemble_preds.shape[0]:
-			non_defered_rmse = 0
-		else:
-			non_defered_rmse = mean_squared_error(true_values[np.argsort(defer_based_on)][:-i], ensemble_preds[np.argsort(defer_based_on)][:-i], squared=False)
+# 		if i==0:
+# 			non_defered_rmse = mean_squared_error(true_values, ensemble_preds, squared=False)
+# 		elif i==ensemble_preds.shape[0]:
+# 			non_defered_rmse = 0
+# 		else:
+# 			non_defered_rmse = mean_squared_error(true_values[np.argsort(defer_based_on)][:-i], ensemble_preds[np.argsort(defer_based_on)][:-i], squared=False)
 	
-		non_defered_rmse_list.append(non_defered_rmse)
+# 		non_defered_rmse_list.append(non_defered_rmse)
 
 	
-	print('Defered RMSE : {:.3f}'.format(defered_rmse))
-	print('Not Defered RMSE : {:.3f}'.format(non_defered_rmse))
+# 	print('Defered RMSE : {:.3f}'.format(defered_rmse))
+# 	print('Not Defered RMSE : {:.3f}'.format(non_defered_rmse))
 
-plt.plot(range(ensemble_preds.shape[0]+1), defered_rmse_list, label='Defered RMSE')
-plt.plot(range(ensemble_preds.shape[0]+1), non_defered_rmse_list, label='Non Defered RMSE')
-plt.legend()
-plt.xlabel('No. of datapoints defered')
-plt.xticks(range(ensemble_preds.shape[0]+1))
-plt.yticks(range(0,15))
-plt.title('Based on '+title)
-plt.grid()
-plt.show()
+# plt.plot(range(ensemble_preds.shape[0]+1), defered_rmse_list, label='Defered RMSE')
+# plt.plot(range(ensemble_preds.shape[0]+1), non_defered_rmse_list, label='Non Defered RMSE')
+# plt.legend()
+# plt.xlabel('No. of datapoints defered')
+# plt.xticks(range(ensemble_preds.shape[0]+1))
+# plt.yticks(range(0,15))
+# plt.title('Based on '+title)
+# plt.grid()
+# plt.show()
 ################### DEFERING ###################
 
 
@@ -190,42 +190,71 @@ plt.show()
 # errors = np.absolute(ensemble_preds - true_values)
 
 # data = np.concatenate((ensemble_true_probs.reshape(-1,1), errors.reshape(-1,1)), axis=-1)
-# # data = errors.reshape(-1,1)
-# kmeans = KMeans(init='k-means++', n_clusters=2, n_init=10)
-# kmeans.fit(data)
-# centroids = kmeans.cluster_centers_
-# print(centroids)
-# predictions = kmeans.predict(data)
-# print(predictions)
-# print('0: {} \t 1: {}'.format(list(predictions).count(0), list(predictions).count(1)))
+# data = np.concatenate((ensemble_preds.reshape(-1,1), np.array(ensemble_val_stddev).reshape(-1,1)), axis=-1)
+# data = np.concatenate((ensemble_pred_probs.reshape(-1,1), np.array(ensemble_val_stddev).reshape(-1,1)), axis=-1)
+# data = ensemble_pred_probs.reshape(-1,1)
+data = np.array(ensemble_val_stddev).reshape(-1,1)
+# data = errors.reshape(-1,1)
+kmeans = KMeans(init='k-means++', n_clusters=2, n_init=10)
+kmeans.fit(data)
+centroids = kmeans.cluster_centers_
+print(centroids)
+predictions = kmeans.predict(data)
+print(predictions)
+print('0: {} \t 1: {}'.format(list(predictions).count(0), list(predictions).count(1)))
+a = true_values*predictions
+b = true_values*np.logical_not(predictions)
+c = ensemble_preds*predictions
+d = ensemble_preds*np.logical_not(predictions)
+rmse1 = mean_squared_error(a[a!=0], c[c!=0], squared=False)
+rmse0 = mean_squared_error(b[b!=0], d[d!=0], squared=False)
 
-# # # Step size of the mesh. Decrease to increase the quality of the VQ.
-# # h = .02     # point in the mesh [x_min, x_max]x[y_min, y_max].
+print('RMSE of cluster 1 : {:.3f}'.format(rmse1))
+print('RMSE of cluster 0 : {:.3f}'.format(rmse0))
 
-# # # Plot the decision boundary. For that, we will assign a color to each
-# # x_min, x_max = data[:, 0].min() - 1, data[:, 0].max() + 1
-# # y_min, y_max = data[:, 1].min() - 1, data[:, 1].max() + 1
-# # xx, yy = np.meshgrid(np.arange(x_min, x_max, h), np.arange(y_min, y_max, h))
+a = true_values*(ensemble_val_stddev>np.max(centroids))
+b = true_values*np.logical_not(ensemble_val_stddev>np.max(centroids))
+c = ensemble_preds*(ensemble_val_stddev>np.max(centroids))
+d = ensemble_preds*np.logical_not(ensemble_val_stddev>np.max(centroids))
+rmse1 = mean_squared_error(a[a!=0], c[c!=0], squared=False)
+rmse0 = mean_squared_error(b[b!=0], d[d!=0], squared=False)
 
-# # # Obtain labels for each point in mesh. Use last trained model.
-# # Z = kmeans.predict(np.c_[xx.ravel(), yy.ravel()])
+print('RMSE of cluster 1 : {:.3f}'.format(rmse1))
+print('RMSE of cluster 0 : {:.3f}'.format(rmse0))
 
-# # # Put the result into a color plot
-# # Z = Z.reshape(xx.shape)
-# # plt.figure(1)
-# # plt.clf()
-# # plt.imshow(Z, interpolation='nearest',
-# #            extent=(xx.min(), xx.max(), yy.min(), yy.max()),
-# #            cmap=plt.cm.Paired,
-# #            aspect='auto', origin='lower')
+# # Step size of the mesh. Decrease to increase the quality of the VQ.
+# h = .02     # point in the mesh [x_min, x_max]x[y_min, y_max].
 
-# plt.title('Absolute errors vs Ensemble true probs')
+# # Plot the decision boundary. For that, we will assign a color to each
+# x_min, x_max = data[:, 0].min() - 1, data[:, 0].max() + 1
+# y_min, y_max = data[:, 1].min() - 1, data[:, 1].max() + 1
+# xx, yy = np.meshgrid(np.arange(x_min, x_max, h), np.arange(y_min, y_max, h))
+
+# # Obtain labels for each point in mesh. Use last trained model.
+# Z = kmeans.predict(np.c_[xx.ravel(), yy.ravel()])
+
+# # Put the result into a color plot
+# Z = Z.reshape(xx.shape)
+# plt.figure(1)
+# plt.clf()
+# plt.imshow(Z, interpolation='nearest',
+#            extent=(xx.min(), xx.max(), yy.min(), yy.max()),
+#            cmap=plt.cm.Paired,
+#            aspect='auto', origin='lower')
+
+plt.title('Absolute errors vs Ensemble true probs')
 # plt.plot(data[:, 0], data[:, 1], 'k.', markersize=2)
+plt.plot(data[:, 0], np.ones(data[:, 0].shape), 'k.', markersize=2)
 
 # plt.scatter(centroids[:, 0], centroids[:, 1],
 #             marker='x', s=169, linewidths=3,
 #             color='r', zorder=10)
-# plt.xlabel('Ensemble true probs')
-# plt.ylabel('Absolute errors')
-# plt.show()
+plt.scatter(centroids[:, 0], np.ones(centroids[:,0].shape),
+            marker='x', s=169, linewidths=3,
+            color='r', zorder=10)
+plt.xlabel('Ensemble true probs')
+plt.xlabel('Mu')
+plt.ylabel('Absolute errors')
+plt.ylabel('Sigma')
+plt.show()
 ################### K MEANS FOR DEFERING ###################
