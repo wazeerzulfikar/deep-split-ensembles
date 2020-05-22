@@ -35,6 +35,9 @@ def load_dataset(config):
     elif config.dataset=='protein':
         data = _protein(config)
 
+    elif config.dataset=='wine':
+        data = _wine(config)
+
     return data
 
 def random_split(features):
@@ -194,6 +197,31 @@ def _protein(config):
     y = data_df['RMSD']
 
     df = data_df.drop(columns=['RMSD'])
+
+    if config.mod_split=='none' or config.mod_split=='human':
+        X = df.values
+        data = {'0':X, 'y':y}
+
+    elif config.mod_split=='random':
+        X = random_split(df.values)
+        data = {'y':y}
+        for i, x in enumerate(X):
+            data[str(i)] = x
+
+    elif config.mod_split=='computation_split':
+        X = feature_split(df.values)
+        data = {'y':y}
+        for i, x in enumerate(X):
+            data[str(i)] = x
+
+    return data
+
+def _wine(config):
+    data_df = pd.read_csv(os.path.join(config.regression_datasets_dir, 'wine.csv'))
+    
+    y = data_df['quality']
+
+    df = data_df.drop(columns=['quality'])
 
     if config.mod_split=='none' or config.mod_split=='human':
         X = df.values
