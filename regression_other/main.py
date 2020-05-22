@@ -1,7 +1,7 @@
 import os
 from load_dataset import load_dataset
 from pathlib import Path
-from evaluator import evaluate_n
+from evaluator import evaluate
 
 # Config to choose the hyperparameters for everything
 class EasyDict(dict):
@@ -25,11 +25,8 @@ config = EasyDict({
     # 'dataset_dir': '../ADReSS-IS2020-data/train',
 
     'dataset': 'boston',
-    'model_dir': 'models/',
-    # 'model_types': ['intervention', 'pause', 'compare'],
 
-    # 'training_type': 'bagging',
-    # 'training_type' :'boosting',
+    'model_dir': 'models/',
 
     'n_folds': 20,
     'n_models': 5, # models in deep ensemble
@@ -37,26 +34,24 @@ config = EasyDict({
     # 'dataset_split' :'full_dataset',
     # 'dataset_split' :'k_fold',
 
-    'build_model': 'gaussian',
-    # 'build_model': 'point',
+    # 'build_model': 'gaussian',
+    'build_model': 'point',
 
     
     # 'mod_split' :'none',
-    # 'mod_split' :'human',
-    'mod_split' :'computation_split',
+    'mod_split' :'human', # running in tmux 6
+    # 'mod_split' :'computation_split', # running in tmux 2
     
-    'learning_rate' : 0.1,
+    'learning_rate' : 0.05,
 
-    'epochs' : 200,
-    
-    'loss' : 'mse',
+    'epochs' : 300,
     
     'optimizer' : 'adam',
 
-    'batch_size' : 100,
+    'batch_size' : 32,
 })
 
-config.expt_name = config.build_model + "_" + config.optimizer + str(config.learning_rate) + "_bs" + str(config.batch_size) + "_epochs" + str(config.epochs)
+config.expt_name = config.build_model + "_" + config.mod_split
 
 def main(config):
 
@@ -69,7 +64,7 @@ def main(config):
     data = load_dataset(config)
     # print(data['X1'].shape)
     # print(data['X2'].shape)
-    evaluate_n(config, data)
+    evaluate(config, data)
 
     # # Train the ensemble models
     # if config.training_type == 'bagging':
