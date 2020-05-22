@@ -5,9 +5,13 @@ from pathlib import Path
 import contextlib
 import re
 import wave
+import six
 from mutagen.mp3 import MP3
 
 import numpy as np
+import tensorflow as tf
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
 
 ################# Utils #################
 
@@ -21,6 +25,36 @@ def create_directories(config):
     model_dir = Path(config.model_dir)
     for m in config.model_types:
         model_dir.joinpath(m).mkdir(parents=True, exist_ok=True)
+
+class MeanMetricWrapper(tf.keras.metrics.Mean):
+    def __init__(self, fn, name=None, dtype=None, **kwargs):
+        super(MeanMetricWrapper, self).__init__(name=name, dtype=dtype)
+        self._fn = fn
+        self._fn_kwargs = kwargs
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        matches = self._fn(y_true, y_pred, **self._fn_kwargs)
+        return super(MeanMetricWrapper, self).update_state(
+            matches, sample_weight=sample_weight)
+    def get_config(self):
+        config = {}
+        for k, v in six.iteritems(self._fn_kwargs):
+            config[k] = tf.keras.backend.eval(v) if is_tensor_or_variable(v) else v
+        base_config = super(MeanMetricWrapper, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+################# COMPARE FEATURES #################
+
+def normalize_compare_features(compare_train, compare_val, compare_features_size=21):
+    sc = StandardScaler()
+    sc.fit(compare_train)
+    compare_train = sc.transform(compare_train)
+    compare_val = sc.transform(compare_val)
+    pca = PCA(n_components=compare_features_size)
+    pca.fit(compare_train)
+    compare_train = pca.transform(compare_train)
+    compare_val = pca.transform(compare_val)
+
+    return compare_train, compare_val
 
 ################# PAUSE FEATURES #################
 
