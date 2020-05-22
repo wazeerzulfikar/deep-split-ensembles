@@ -38,6 +38,8 @@ def load_dataset(config):
     elif config.dataset=='wine':
         data = _wine(config)
 
+    elif config.dataset=='yacht':
+        data = _yacht(config)
     return data
 
 def random_split(features):
@@ -223,6 +225,32 @@ def _wine(config):
 
     df = data_df.drop(columns=['quality'])
 
+    if config.mod_split=='none' or config.mod_split=='human':
+        X = df.values
+        data = {'0':X, 'y':y}
+
+    elif config.mod_split=='random':
+        X = random_split(df.values)
+        data = {'y':y}
+        for i, x in enumerate(X):
+            data[str(i)] = x
+
+    elif config.mod_split=='computation_split':
+        X = feature_split(df.values)
+        data = {'y':y}
+        for i, x in enumerate(X):
+            data[str(i)] = x
+
+    return data
+
+def _yacht(config):
+    cols = ['Longitudinal position of the center of buoyancy', 'Prismatic coefficient', 'Length-displacement ratio', 
+            'Beam-draught ratio', 'Length-beam ratio', 'Froude number', 'Residuary resistance per unit weight of displacement']
+
+    data_df = pd.read_csv(os.path.join(config.regression_datasets_dir, 'yacht.data'), sep="\\s+", names=cols)
+    target_col = 'Residuary resistance per unit weight of displacement'
+    y = data_df[target_col]
+    df = data_df.drop(columns=[target_col])
     if config.mod_split=='none' or config.mod_split=='human':
         X = df.values
         data = {'0':X, 'y':y}
