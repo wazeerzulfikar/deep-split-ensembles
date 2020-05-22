@@ -79,10 +79,10 @@ def evaluate(config, data):
 		fold+=1
 	# print("\nBest epochs : ", best_epochs)
 	if config.build_model=='point':
-		print("Featurewise Models Train RMSE:", np.mean(final_feature_models_train_score, axis=0))
-		print("Featurewise Models Val RMSE:", np.mean(final_feature_models_val_score, axis=0))
-		print("Ensemble Train RMSE:", np.mean(final_train_score), "+/-", np.std(final_train_score))
-		print("Ensemble Val RMSE:", np.mean(final_val_score), "+/-", np.std(final_val_score))
+		print("Featurewise Models Train RMSE:", [float('{:.3f}'.format(i)) for i in np.mean(final_feature_models_train_score, axis=0)])
+		print("Featurewise Models Val RMSE:", [float('{:.3f}'.format(i)) for i in np.mean(final_feature_models_val_score, axis=0)])
+		print("Ensemble Train RMSE: {:.3f} +/- {:.3f}".format(np.mean(final_train_score), np.std(final_train_score)))
+		print("Ensemble Val RMSE: {:.3f} +/- {:.3f}".format(np.mean(final_val_score), np.std(final_val_score)))
 
 	### ends here
 
