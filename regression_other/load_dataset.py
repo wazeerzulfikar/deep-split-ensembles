@@ -32,7 +32,6 @@ def load_dataset(config):
     return data
 
 def random_split(features):
-    features = features[:, :10]
     data = np.transpose(features)
     n_splits = feature_split(features, return_split_sizes=True)
     n_features = len(data)
