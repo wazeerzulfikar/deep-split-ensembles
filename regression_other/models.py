@@ -11,7 +11,10 @@ def build_model(config):
 	if config.build_model=='point':
 		loss = tf.keras.losses.mean_squared_error
 		model = Sequential()
-		model.add(Dense(50, activation='relu'))
+		if config.dataset=='protein' or config.dataset=='msd':
+			model.add(Dense(100, activation='relu'))
+		else:
+			model.add(Dense(50, activation='relu'))
 		model.add(Dense(1))
 
 	if config.build_model=='gaussian':
