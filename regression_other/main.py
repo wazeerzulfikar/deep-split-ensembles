@@ -38,8 +38,8 @@ config = EasyDict({
     'build_model': 'point',
 
     
-    # 'mod_split' :'none',
-    'mod_split' :'human', # running in tmux 6
+    'mod_split' :'none', # running in tmux 0
+    # 'mod_split' :'human', # running in tmux 6
     # 'mod_split' :'computation_split', # running in tmux 2
     
     'learning_rate' : 0.05,

@@ -54,7 +54,7 @@ def _boston(config):
 
     if config.mod_split=='none':
         X = df.values
-        y = df['target']
+        y = df['TARGET']
         data = {'X':X, 'y':y}
 
     elif config.mod_split=='human':
