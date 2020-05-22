@@ -32,6 +32,9 @@ def load_dataset(config):
     elif config.dataset=='power_plant':
         data = _power_plant(config)
 
+    elif config.dataset=='protein':
+        data = _protein(config)
+
     return data
 
 def random_split(features):
@@ -170,6 +173,31 @@ def _power_plant(config):
         X1 = df[features1].values
         X2 = df[features2].values
         data = {'0':X1, '1':X2, 'y':y}
+
+    elif config.mod_split=='random':
+        X = random_split(df.values)
+        data = {'y':y}
+        for i, x in enumerate(X):
+            data[str(i)] = x
+
+    elif config.mod_split=='computation_split':
+        X = feature_split(df.values)
+        data = {'y':y}
+        for i, x in enumerate(X):
+            data[str(i)] = x
+
+    return data
+
+def _protein(config):
+    data_df = pd.read_csv(os.path.join(config.regression_datasets_dir, 'protein.csv'))
+    
+    y = data_df['RMSD']
+
+    df = data_df.drop(columns=['RMSD'])
+
+    if config.mod_split=='none' or config.mod_split=='human':
+        X = df.values
+        data = {'0':X, 'y':y}
 
     elif config.mod_split=='random':
         X = random_split(df.values)
