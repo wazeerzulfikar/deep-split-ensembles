@@ -29,6 +29,9 @@ def load_dataset(config):
     elif config.dataset=='kin8nm':
         data = _kin8nm(config)
 
+    elif config.dataset=='power_plant':
+        data = _power_plant(config)
+
     return data
 
 def random_split(features):
@@ -136,6 +139,37 @@ def _kin8nm(config):
     if config.mod_split=='none' or config.mod_split=='human': # since only 1 split
         X = df.values
         data = {'0':X, 'y':y}
+
+    elif config.mod_split=='random':
+        X = random_split(df.values)
+        data = {'y':y}
+        for i, x in enumerate(X):
+            data[str(i)] = x
+
+    elif config.mod_split=='computation_split':
+        X = feature_split(df.values)
+        data = {'y':y}
+        for i, x in enumerate(X):
+            data[str(i)] = x
+
+    return data
+
+def _power_plant(config):
+    data_df = pd.read_csv(os.path.join(config.regression_datasets_dir, 'power_plant.csv'))
+    
+    y = data_df['PE']
+
+    df = data_df.drop(columns=['PE'])
+    if config.mod_split=='none':
+        X = df.values
+        data = {'0':X, 'y':y}
+
+    elif config.mod_split=='human':
+        features1 = ['AT', 'RH']
+        features2 = ['V', 'AP']
+        X1 = df[features1].values
+        X2 = df[features2].values
+        data = {'0':X1, '1':X2, 'y':y}
 
     elif config.mod_split=='random':
         X = random_split(df.values)
