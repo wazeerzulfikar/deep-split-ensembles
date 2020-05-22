@@ -75,7 +75,7 @@ def _boston(config):
 
     if config.mod_split=='none':
         X = df.values
-        data = {'X':X, 'y':y}
+        data = {'0':X, 'y':y}
 
     elif config.mod_split=='human':
         features1 = ['ZN', 'INDUS', 'CHAS', 'NOX', 'RM', 'AGE', 'DIS', 'RAD', 'TAX']
@@ -108,7 +108,7 @@ def _cement(config):
     
     if config.mod_split=='none' or config.mod_split=='human': # since only 1 split
         X = df.values
-        data = {'X':X, 'y':y}
+        data = {'0':X, 'y':y}
 
     elif config.mod_split=='random':
         X = random_split(df.values)
@@ -135,7 +135,7 @@ def _kin8nm(config):
     df = data_df.drop(columns=['y'])
     if config.mod_split=='none' or config.mod_split=='human': # since only 1 split
         X = df.values
-        data = {'X':X, 'y':y}
+        data = {'0':X, 'y':y}
 
     elif config.mod_split=='random':
         X = random_split(df.values)
