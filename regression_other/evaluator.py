@@ -9,6 +9,8 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import mean_squared_error
 import os
 
+os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
+os.environ["CUDA_VISIBLE_DEVICES"]="7"
 
 def standard_scale(x_train, x_test):
 	scalar = StandardScaler()
@@ -31,7 +33,8 @@ def evaluate(config, data):
 		feature_sets = len(data)-1
 		feature_models_train_preds, feature_models_val_preds = [], []
 		feature_models_train_score, feature_models_val_score = [], []
-		for feature_set in data:
+		feaature_keys = sorted([i for i in range(feature_sets)])
+		for feature_set in feaature_keys:
 			if feature_set=='y':
 				continue
 			else:
