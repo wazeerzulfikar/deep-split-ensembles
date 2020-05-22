@@ -31,7 +31,35 @@ def load_dataset(config):
 
     return data
 
-def feature_split(features):
+def random_split(features):
+    features = features[:, :10]
+    data = np.transpose(features)
+    n_splits = feature_split(features, return_split_sizes=True)
+    n_features = len(data)
+    
+    per_split = n_features//n_splits
+
+    # this just makes sure that number of splits is equal to the splits in hierarchial
+    # and also that the "extra" features are equally distributed amongst the clusters  
+    extra_cols = n_features%n_splits  
+    
+    rand_range = [x for x in range(n_features)]
+    np.random.shuffle(rand_range)
+    X = []
+    ind=0
+    while ind<n_features:
+        if ind+per_split>=n_features:
+            f = rand_range[ind:]    
+        else:
+            f = rand_range[ind:ind+per_split+extra_cols]
+            if(extra_cols>0):
+                ind+=1
+                extra_cols-=1
+        X.append(np.transpose(data[f]))
+        ind+=per_split
+    return X
+
+def feature_split(features, return_split_sizes=False):
     from scipy.cluster.hierarchy import linkage
     data = np.transpose(features)
 
@@ -39,6 +67,9 @@ def feature_split(features):
     Y = pdist(data, 'correlation')
     linkage = linkage(Y, 'complete')
     clusters = fcluster(linkage, 0.5 * Y.max(), 'distance')
+
+    if(return_split_sizes):
+        return len(set(clusters))
 
     X = []
     for cluster in set(clusters):
@@ -65,8 +96,12 @@ def _boston(config):
         y = df['TARGET']
         data = {'X1':X1, 'X2':X2, 'y':y}
 
-    # elif config.mod_split=='random':
-
+    elif config.mod_split=='random':
+        X = random_split((df.drop(columns=['TARGET'])).values)
+        y = df['TARGET']
+        data = {'y':y}
+        for i, x in enumerate(X):
+            data[str(i)] = x
 
     elif config.mod_split=='computation_split':
         X = feature_split((df.drop(columns=['TARGET'])).values)
