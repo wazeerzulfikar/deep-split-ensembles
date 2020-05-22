@@ -33,13 +33,14 @@ def evaluate(config, data):
 		feature_sets = len(data)-1
 		feature_models_train_preds, feature_models_val_preds = [], []
 		feature_models_train_score, feature_models_val_score = [], []
-		feaature_keys = sorted([i for i in range(feature_sets)])
-		for feature_set in feaature_keys:
+		feature_keys = sorted([i for i in range(feature_sets)])
+		for feature_set in feature_keys:
 			if feature_set=='y':
 				continue
 			else:
 				pass
-			X = data[feature_set]
+
+			X = data[str(feature_set)]
 			y = data['y']
 
 			x_train = np.asarray(X[train_index])
