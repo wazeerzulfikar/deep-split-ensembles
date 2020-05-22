@@ -23,11 +23,11 @@ def load_dataset(config):
     elif config.dataset=='cement':
         data = _cement(config)
 
-    elif config.dataset=='energy':
-        data = _cement(config)
+    # elif config.dataset=='energy':
+    #     data = _cement(config)
 
-    elif config.dataset=='cement':
-        data = _cement(config)
+    # elif config.dataset=='cement':
+    #     data = _cement(config)
 
     return data
 
@@ -50,7 +50,7 @@ def random_split(features):
         if ind+per_split>=n_features:
             f = rand_range[ind:]    
         else:
-            f = rand_range[ind:ind+per_split+extra_cols]
+            f = rand_range[ind:ind+per_split+int(extra_cols>0)]
             if(extra_cols>0):
                 ind+=1
                 extra_cols-=1
@@ -66,7 +66,6 @@ def feature_split(features, return_split_sizes=False):
     Y = pdist(data, 'correlation')
     linkage = linkage(Y, 'complete')
     clusters = fcluster(linkage, 0.5 * Y.max(), 'distance')
-
     if(return_split_sizes):
         return len(set(clusters))
 
@@ -77,14 +76,12 @@ def feature_split(features, return_split_sizes=False):
     return X
 
 def _boston(config):
-    print("Loading boston")
     data_df = load_boston()
     df = pd.DataFrame(data=data_df['data'], columns=data_df['feature_names'])
-    df['TARGET'] = data_df['target']
+    y = data_df['target']
 
     if config.mod_split=='none':
         X = df.values
-        y = df['TARGET']
         data = {'X':X, 'y':y}
 
     elif config.mod_split=='human':
@@ -92,19 +89,16 @@ def _boston(config):
         features2 = ['CRIM', 'PTRATIO', 'B', 'LSTAT']
         X1 = df[features1].values
         X2 = df[features2].values
-        y = df['TARGET']
         data = {'X1':X1, 'X2':X2, 'y':y}
 
     elif config.mod_split=='random':
-        X = random_split((df.drop(columns=['TARGET'])).values)
-        y = df['TARGET']
+        X = random_split(df.values)
         data = {'y':y}
         for i, x in enumerate(X):
             data[str(i)] = x
 
     elif config.mod_split=='computation_split':
-        X = feature_split((df.drop(columns=['TARGET'])).values)
-        y = df['TARGET']
+        X = feature_split(df.values)
         data = {'y':y}
         for i, x in enumerate(X):
             data[str(i)] = x
@@ -112,6 +106,27 @@ def _boston(config):
     return data
 
 def _cement(config):
-    print("Loading cement")
-    data=0
+    data_df = pd.read_csv(os.path.join(config.regression_datasets_dir, 'cement.csv'))
+    
+    target_col = 'Concrete compressive strength(MPa, megapascals) '
+    y = data_df[target_col]
+
+    df = data_df.drop(columns=[target_col])
+    
+    if config.mod_split=='none' or config.mod_split=='human': # since only 1 split
+        X = df.values
+        data = {'X':X, 'y':y}
+
+    elif config.mod_split=='random':
+        X = random_split(df.values)
+        data = {'y':y}
+        for i, x in enumerate(X):
+            data[str(i)] = x
+
+    elif config.mod_split=='computation_split':
+        X = feature_split(df.values)
+        data = {'y':y}
+        for i, x in enumerate(X):
+            data[str(i)] = x
+
     return data
