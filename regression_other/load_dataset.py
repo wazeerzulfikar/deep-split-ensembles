@@ -23,39 +23,30 @@ def load_dataset(config):
     elif config.dataset=='cement':
         data = _cement(config)
 
-    # elif config.dataset=='energy':
-    #     data = _cement(config)
+    elif config.dataset=='energy_efficiency':
+        data = _energy_efficiency(config)
 
-    # elif config.dataset=='cement':
-    #     data = _cement(config)
+    elif config.dataset=='kin8nm':
+        data = _kin8nm(config)
 
     return data
 
 def random_split(features):
     data = np.transpose(features)
-    n_splits = feature_split(features, return_split_sizes=True)
+    clusters = feature_split(features, return_split_sizes=True)
     n_features = len(data)
-    
-    per_split = n_features//n_splits
-
-    # this just makes sure that number of splits is equal to the splits in hierarchial
-    # and also that the "extra" features are equally distributed amongst the clusters  
-    extra_cols = n_features%n_splits  
     
     rand_range = [x for x in range(n_features)]
     np.random.shuffle(rand_range)
+    
     X = []
     ind=0
-    while ind<n_features:
-        if ind+per_split>=n_features:
-            f = rand_range[ind:]    
-        else:
-            f = rand_range[ind:ind+per_split+int(extra_cols>0)]
-            if(extra_cols>0):
-                ind+=1
-                extra_cols-=1
-        X.append(np.transpose(data[f]))
-        ind+=per_split
+    
+    for c in set(clusters):
+        cluster_size = list(clusters).count(c)
+        indices = rand_range[ind:ind+cluster_size]
+        X.append(np.transpose(data[indices]))
+        ind+=cluster_size
     return X
 
 def feature_split(features, return_split_sizes=False):
@@ -65,9 +56,11 @@ def feature_split(features, return_split_sizes=False):
     ######### Hierarchical Clustering based on correlation
     Y = pdist(data, 'correlation')
     linkage = linkage(Y, 'complete')
+    # dendrogram(linkage, color_threshold=0)
+    # plt.show()
     clusters = fcluster(linkage, 0.5 * Y.max(), 'distance')
     if(return_split_sizes):
-        return len(set(clusters))
+        return clusters
 
     X = []
     for cluster in set(clusters):
@@ -89,7 +82,7 @@ def _boston(config):
         features2 = ['CRIM', 'PTRATIO', 'B', 'LSTAT']
         X1 = df[features1].values
         X2 = df[features2].values
-        data = {'X1':X1, 'X2':X2, 'y':y}
+        data = {'0':X1, '1':X2, 'y':y}
 
     elif config.mod_split=='random':
         X = random_split(df.values)
@@ -113,6 +106,33 @@ def _cement(config):
 
     df = data_df.drop(columns=[target_col])
     
+    if config.mod_split=='none' or config.mod_split=='human': # since only 1 split
+        X = df.values
+        data = {'X':X, 'y':y}
+
+    elif config.mod_split=='random':
+        X = random_split(df.values)
+        data = {'y':y}
+        for i, x in enumerate(X):
+            data[str(i)] = x
+
+    elif config.mod_split=='computation_split':
+        X = feature_split(df.values)
+        data = {'y':y}
+        for i, x in enumerate(X):
+            data[str(i)] = x
+
+    return data
+
+def _energy_efficiency(config):
+    return
+
+def _kin8nm(config):
+    data_df = pd.read_csv(os.path.join(config.regression_datasets_dir, 'kin8nm.csv'))
+    
+    y = data_df['y']
+
+    df = data_df.drop(columns=['y'])
     if config.mod_split=='none' or config.mod_split=='human': # since only 1 split
         X = df.values
         data = {'X':X, 'y':y}
