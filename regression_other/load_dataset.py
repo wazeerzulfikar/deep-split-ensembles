@@ -14,9 +14,47 @@ from sklearn.preprocessing import scale
 from scipy.cluster.hierarchy import linkage, fcluster, dendrogram
 from scipy.spatial.distance import pdist
 
+def random_split(features):
+    data = np.transpose(features)
+    clusters = feature_split(features, return_split_sizes=True)
+    n_features = len(data)
+    
+    rand_range = [x for x in range(n_features)]
+    np.random.shuffle(rand_range)
+    
+    X = []
+    ind=0
+    
+    for c in set(clusters):
+        cluster_size = list(clusters).count(c)
+        indices = rand_range[ind:ind+cluster_size]
+        print(indices)
+        X.append(np.transpose(data[indices]))
+        ind+=cluster_size
+    return X
+
+def feature_split(features, return_split_sizes=False):
+    from scipy.cluster.hierarchy import linkage
+    data = np.transpose(features)
+
+    ######### Hierarchical Clustering based on correlation
+    Y = pdist(data, 'correlation')
+    linkage = linkage(Y, 'complete')
+    # dendrogram(linkage, color_threshold=0)
+    # plt.show()
+    clusters = fcluster(linkage, 0.5 * Y.max(), 'distance')
+    if(return_split_sizes):
+        return clusters
+
+    X = []
+    for cluster in set(clusters):
+        indices = [j for j in range(len(clusters)) if clusters[j]==cluster]
+        print(indices)
+        X.append(np.transpose(data[indices]))
+    return X
 
 def load_dataset(config):
-
+    np.random.seed(0)
     if config.dataset=='boston':
         data = _boston(config)        
 
@@ -43,46 +81,12 @@ def load_dataset(config):
     
     elif config.dataset=='naval':
         data = _naval(config)
+
+    elif config.dataset=='msd':
+        data = _msd(config)
     return data
 
-def random_split(features):
-    data = np.transpose(features)
-    clusters = feature_split(features, return_split_sizes=True)
-    n_features = len(data)
-    
-    rand_range = [x for x in range(n_features)]
-    np.random.shuffle(rand_range)
-    
-    X = []
-    ind=0
-    
-    for c in set(clusters):
-        cluster_size = list(clusters).count(c)
-        indices = rand_range[ind:ind+cluster_size]
-        # print(indices)
-        X.append(np.transpose(data[indices]))
-        ind+=cluster_size
-    return X
 
-def feature_split(features, return_split_sizes=False):
-    from scipy.cluster.hierarchy import linkage
-    data = np.transpose(features)
-
-    ######### Hierarchical Clustering based on correlation
-    Y = pdist(data, 'correlation')
-    linkage = linkage(Y, 'complete')
-    # dendrogram(linkage, color_threshold=0)
-    # plt.show()
-    clusters = fcluster(linkage, 0.5 * Y.max(), 'distance')
-    if(return_split_sizes):
-        return clusters
-
-    X = []
-    for cluster in set(clusters):
-        indices = [j for j in range(len(clusters)) if clusters[j]==cluster]
-        # print(indices)
-        X.append(np.transpose(data[indices]))
-    return X
 
 def _boston(config):
     data_df = load_boston()
@@ -343,6 +347,41 @@ def _naval(config):
         X3 = df[features3].values
         X4 = df[features4].values
         data = {'0':X1, '1':X2, '2':X3, '3':X4, 'y':y}
+
+    elif config.mod_split=='random':
+        X = random_split(df.values)
+        data = {'y':y}
+        for i, x in enumerate(X):
+            data[str(i)] = x
+
+    elif config.mod_split=='computation_split':
+        X = feature_split(df.values)
+        data = {'y':y}
+        for i, x in enumerate(X):
+            data[str(i)] = x
+
+    return data
+
+def _msd(config):
+    
+    data_df = pd.read_csv(os.path.join(config.regression_datasets_dir, 'year_prediction.csv'))
+    target_col = 'label'
+    
+    y = data_df[target_col]
+
+    df = data_df.drop(columns=['label'])
+    cols = df.columns.tolist()
+    if config.mod_split=='none':
+        X = df.values
+        data = {'0':X, 'y':y}
+
+    if config.mod_split=='human':
+        features1 = cols[:12]
+        features2 = cols[12:]
+
+        X1 = df[features1].values
+        X2 = df[features2].values
+        data = {'0':X1, '1':X2, 'y':y}
 
     elif config.mod_split=='random':
         X = random_split(df.values)
