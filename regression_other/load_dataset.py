@@ -14,9 +14,9 @@ from sklearn.preprocessing import scale
 from scipy.cluster.hierarchy import linkage, fcluster, dendrogram
 from scipy.spatial.distance import pdist
 
-def random_split(features):
+def random_split(config, features):
     data = np.transpose(features)
-    clusters = feature_split(features, return_split_sizes=True)
+    clusters = feature_split(config, features, return_split_sizes=True)
     n_features = len(data)
     
     rand_range = [x for x in range(n_features)]
@@ -28,12 +28,12 @@ def random_split(features):
     for c in set(clusters):
         cluster_size = list(clusters).count(c)
         indices = rand_range[ind:ind+cluster_size]
-        print(indices)
+        # print(indices)
         X.append(np.transpose(data[indices]))
         ind+=cluster_size
     return X
 
-def feature_split(features, return_split_sizes=False):
+def feature_split(config, features, return_split_sizes=False):
     from scipy.cluster.hierarchy import linkage
     data = np.transpose(features)
 
@@ -42,14 +42,18 @@ def feature_split(features, return_split_sizes=False):
     linkage = linkage(Y, 'complete')
     # dendrogram(linkage, color_threshold=0)
     # plt.show()
-    clusters = fcluster(linkage, 0.5 * Y.max(), 'distance')
+    if config.dataset=='msd':
+        clusters = fcluster(linkage, 0.75 * Y.max(), 'distance')
+    else:
+        clusters = fcluster(linkage, 0.5 * Y.max(), 'distance')
+
     if(return_split_sizes):
         return clusters
 
     X = []
     for cluster in set(clusters):
         indices = [j for j in range(len(clusters)) if clusters[j]==cluster]
-        print(indices)
+        # print(indices)
         X.append(np.transpose(data[indices]))
     return X
 
@@ -105,13 +109,13 @@ def _boston(config):
         data = {'0':X1, '1':X2, 'y':y}
 
     elif config.mod_split=='random':
-        X = random_split(df.values)
+        X = random_split(config, df.values)
         data = {'y':y}
         for i, x in enumerate(X):
             data[str(i)] = x
 
     elif config.mod_split=='computation_split':
-        X = feature_split(df.values)
+        X = feature_split(config, df.values)
         data = {'y':y}
         for i, x in enumerate(X):
             data[str(i)] = x
@@ -131,13 +135,13 @@ def _cement(config):
         data = {'0':X, 'y':y}
 
     elif config.mod_split=='random':
-        X = random_split(df.values)
+        X = random_split(config, df.values)
         data = {'y':y}
         for i, x in enumerate(X):
             data[str(i)] = x
 
     elif config.mod_split=='computation_split':
-        X = feature_split(df.values)
+        X = feature_split(config, df.values)
         data = {'y':y}
         for i, x in enumerate(X):
             data[str(i)] = x
@@ -167,13 +171,13 @@ def _energy_efficiency(config):
         data = {'0':X1, '1':X2, 'y':y}
 
     elif config.mod_split=='random':
-        X = random_split(df.values)
+        X = random_split(config, df.values)
         data = {'y':y}
         for i, x in enumerate(X):
             data[str(i)] = x
 
     elif config.mod_split=='computation_split':
-        X = feature_split(df.values)
+        X = feature_split(config, df.values)
         data = {'y':y}
         for i, x in enumerate(X):
             data[str(i)] = x
@@ -191,13 +195,13 @@ def _kin8nm(config):
         data = {'0':X, 'y':y}
 
     elif config.mod_split=='random':
-        X = random_split(df.values)
+        X = random_split(config, df.values)
         data = {'y':y}
         for i, x in enumerate(X):
             data[str(i)] = x
 
     elif config.mod_split=='computation_split':
-        X = feature_split(df.values)
+        X = feature_split(config, df.values)
         data = {'y':y}
         for i, x in enumerate(X):
             data[str(i)] = x
@@ -222,13 +226,13 @@ def _power_plant(config):
         data = {'0':X1, '1':X2, 'y':y}
 
     elif config.mod_split=='random':
-        X = random_split(df.values)
+        X = random_split(config, df.values)
         data = {'y':y}
         for i, x in enumerate(X):
             data[str(i)] = x
 
     elif config.mod_split=='computation_split':
-        X = feature_split(df.values)
+        X = feature_split(config, df.values)
         data = {'y':y}
         for i, x in enumerate(X):
             data[str(i)] = x
@@ -247,13 +251,13 @@ def _protein(config):
         data = {'0':X, 'y':y}
 
     elif config.mod_split=='random':
-        X = random_split(df.values)
+        X = random_split(config, df.values)
         data = {'y':y}
         for i, x in enumerate(X):
             data[str(i)] = x
 
     elif config.mod_split=='computation_split':
-        X = feature_split(df.values)
+        X = feature_split(config, df.values)
         data = {'y':y}
         for i, x in enumerate(X):
             data[str(i)] = x
@@ -281,13 +285,13 @@ def _wine(config):
         data = {'0':X1, '1':X2, 'y':y}
 
     elif config.mod_split=='random':
-        X = random_split(df.values)
+        X = random_split(config, df.values)
         data = {'y':y}
         for i, x in enumerate(X):
             data[str(i)] = x
 
     elif config.mod_split=='computation_split':
-        X = feature_split(df.values)
+        X = feature_split(config, df.values)
         data = {'y':y}
         for i, x in enumerate(X):
             data[str(i)] = x
@@ -307,13 +311,13 @@ def _yacht(config):
         data = {'0':X, 'y':y}
 
     elif config.mod_split=='random':
-        X = random_split(df.values)
+        X = random_split(config, df.values)
         data = {'y':y}
         for i, x in enumerate(X):
             data[str(i)] = x
 
     elif config.mod_split=='computation_split':
-        X = feature_split(df.values)
+        X = feature_split(config, df.values)
         data = {'y':y}
         for i, x in enumerate(X):
             data[str(i)] = x
@@ -349,13 +353,13 @@ def _naval(config):
         data = {'0':X1, '1':X2, '2':X3, '3':X4, 'y':y}
 
     elif config.mod_split=='random':
-        X = random_split(df.values)
+        X = random_split(config, df.values)
         data = {'y':y}
         for i, x in enumerate(X):
             data[str(i)] = x
 
     elif config.mod_split=='computation_split':
-        X = feature_split(df.values)
+        X = feature_split(config, df.values)
         data = {'y':y}
         for i, x in enumerate(X):
             data[str(i)] = x
@@ -384,13 +388,13 @@ def _msd(config):
         data = {'0':X1, '1':X2, 'y':y}
 
     elif config.mod_split=='random':
-        X = random_split(df.values)
+        X = random_split(config, df.values)
         data = {'y':y}
         for i, x in enumerate(X):
             data[str(i)] = x
 
     elif config.mod_split=='computation_split':
-        X = feature_split(df.values)
+        X = feature_split(config, df.values)
         data = {'y':y}
         for i, x in enumerate(X):
             data[str(i)] = x
