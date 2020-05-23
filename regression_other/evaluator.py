@@ -10,7 +10,7 @@ from sklearn.metrics import mean_squared_error
 import os
 
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"]="7"
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 def standard_scale(x_train, x_test):
 	scalar = StandardScaler()
@@ -111,7 +111,7 @@ def train_a_fold(fold, model_number, config, x_train, y_train, x_val, y_val):
 	history = model.fit(x_train, y_train,
 				  epochs=epochs,
 				  batch_size=batch_size,
-				  verbose=1,
+				  verbose=0,
 				  callbacks=[checkpoints],
 				  validation_data=(x_val, y_val))
 
