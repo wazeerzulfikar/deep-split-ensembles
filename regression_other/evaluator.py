@@ -34,6 +34,11 @@ def evaluate(config, data):
 		feature_models_train_preds, feature_models_val_preds = [], []
 		feature_models_train_score, feature_models_val_score = [], []
 		feature_keys = sorted([i for i in range(feature_sets)])
+
+		if config.dataset=='msd':
+			train_index = [x for x in range(463715)]
+			test_index = [x for x in range(463715, 515345)]
+		
 		for feature_set in feature_keys:
 			if feature_set=='y':
 				continue
@@ -80,6 +85,10 @@ def evaluate(config, data):
 		final_val_preds = np.mean(np.array(feature_models_val_preds), axis=0)
 		final_train_score.append(mean_squared_error(y_train, final_train_preds, squared=False))
 		final_val_score.append(mean_squared_error(y_val, final_val_preds, squared=False))
+		
+		if config.dataset=='msd':
+			break
+
 		fold+=1
 	# print("\nBest epochs : ", best_epochs)
 	if config.build_model=='point':
