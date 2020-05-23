@@ -40,6 +40,9 @@ def load_dataset(config):
 
     elif config.dataset=='yacht':
         data = _yacht(config)
+    
+    elif config.dataset=='naval':
+        data = _naval(config)
     return data
 
 def random_split(features):
@@ -56,6 +59,7 @@ def random_split(features):
     for c in set(clusters):
         cluster_size = list(clusters).count(c)
         indices = rand_range[ind:ind+cluster_size]
+        # print(indices)
         X.append(np.transpose(data[indices]))
         ind+=cluster_size
     return X
@@ -76,6 +80,7 @@ def feature_split(features, return_split_sizes=False):
     X = []
     for cluster in set(clusters):
         indices = [j for j in range(len(clusters)) if clusters[j]==cluster]
+        # print(indices)
         X.append(np.transpose(data[indices]))
     return X
 
@@ -136,7 +141,40 @@ def _cement(config):
     return data
 
 def _energy_efficiency(config):
-    return
+
+    data_df = pd.read_csv(os.path.join(config.regression_datasets_dir, 'energy_efficiency.csv'))
+    
+    target_col1 = 'Heating Load'
+    target_col2 = 'Cooling Load'
+    y = data_df[target_col1]
+
+    df = data_df.drop(columns=[target_col1, target_col2])
+
+    if config.mod_split=='none':
+        X = df.values
+        data = {'0':X, 'y':y}
+
+    if config.mod_split=='human':
+        features1 = ['Wall Area', 'Roof Area', 'Glazing Area', 'Glazing Area Distribution']
+        features2 = ['Relative Compactness', 'Surface Area', 'Overall Height', 'Orientation']
+
+        X1 = df[features1].values
+        X2 = df[features2].values
+        data = {'0':X1, '1':X2, 'y':y}
+
+    elif config.mod_split=='random':
+        X = random_split(df.values)
+        data = {'y':y}
+        for i, x in enumerate(X):
+            data[str(i)] = x
+
+    elif config.mod_split=='computation_split':
+        X = feature_split(df.values)
+        data = {'y':y}
+        for i, x in enumerate(X):
+            data[str(i)] = x
+
+    return data
 
 def _kin8nm(config):
     data_df = pd.read_csv(os.path.join(config.regression_datasets_dir, 'kin8nm.csv'))
@@ -225,9 +263,18 @@ def _wine(config):
 
     df = data_df.drop(columns=['quality'])
 
-    if config.mod_split=='none' or config.mod_split=='human':
+    if config.mod_split=='none':
         X = df.values
         data = {'0':X, 'y':y}
+
+    if config.mod_split=='human':
+        features1 = ['fixed acidity', 'volatile acidity', 'density', 'pH']
+        features2 = ['citric acid', 'residual sugar', 'chlorides','free sulfur dioxide',
+                    'total sulfur dioxide', 'sulphates', 'alcohol']
+
+        X1 = df[features1].values
+        X2 = df[features2].values
+        data = {'0':X1, '1':X2, 'y':y}
 
     elif config.mod_split=='random':
         X = random_split(df.values)
@@ -254,6 +301,48 @@ def _yacht(config):
     if config.mod_split=='none' or config.mod_split=='human':
         X = df.values
         data = {'0':X, 'y':y}
+
+    elif config.mod_split=='random':
+        X = random_split(df.values)
+        data = {'y':y}
+        for i, x in enumerate(X):
+            data[str(i)] = x
+
+    elif config.mod_split=='computation_split':
+        X = feature_split(df.values)
+        data = {'y':y}
+        for i, x in enumerate(X):
+            data[str(i)] = x
+
+    return data
+
+def _naval(config):
+    cols = ['lp', 'v', 'gtt', 'gtn', 'ggn', 'ts', 'tp',
+            't48', 't1', 't2', 'p48', 'p1', 'p2', 'pexh',
+            'tic', 'mf', 'y1', 'y2']
+
+    data_df = pd.read_csv(os.path.join(config.regression_datasets_dir, 'naval.csv'), sep='\\s+', names=cols)
+    target_col = ['y1', 'y2']
+    
+    y = data_df[target_col[0]]
+
+    df = data_df.drop(columns=['y1', 'y2', 't1', 'p1'])
+
+    if config.mod_split=='none':
+        X = df.values
+        data = {'0':X, 'y':y}
+
+    if config.mod_split=='human':
+        features1 = ['t48', 't2']
+        features2 = ['p48', 'p2', 'pexh']
+        features3 = ['gtt', 'gtn', 'ggn', 'ts', 'tp']
+        features4 = ['lp', 'v', 'tic', 'mf']
+
+        X1 = df[features1].values
+        X2 = df[features2].values
+        X3 = df[features3].values
+        X4 = df[features4].values
+        data = {'0':X1, '1':X2, '2':X3, '3':X4, 'y':y}
 
     elif config.mod_split=='random':
         X = random_split(df.values)
