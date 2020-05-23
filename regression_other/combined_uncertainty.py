@@ -6,16 +6,75 @@ from sklearn.model_selection import KFold
 from sklearn.metrics import mean_squared_error
 from sklearn.preprocessing import StandardScaler
 
-import glob, os, math, time
+import os
 import numpy as np
 np.random.seed(0)
-from pathlib import Path
+
 import matplotlib.pyplot as plt
 
-import load_dataset
-# from ..utils import EasyDict
+import models
 
 tfd = tfp.distributions
+
+def train(X, y, config):
+	run_all_folds(X, y, train=True, config=config)
+
+def evaluate(X, y, config):
+	run_all_folds(X, y, train=False, config=config)
+	
+def plot(X, y, config):
+	ensemble_mus, ensemble_sigmas, true_values = get_ensemble_predictions(X, y, config)
+	for i in range(config.n_feature_sets):
+		print('feature set {}'.format(i))
+		defered_rmse_list, non_defered_rmse_list = defer_analysis(true_values, ensemble_mus, ensemble_sigmas[...,i])
+
+		# plt.subplot(n_feature_sets, 1, i+1)
+		# plt.plot(range(ensemble_mus.shape[0]+1), defered_rmse_list, label='Defered RMSE')
+		# plt.plot(range(ensemble_mus.shape[0]+1), non_defered_rmse_list, label='Non Defered RMSE')
+		plt.plot(range(ensemble_mus.shape[0]+1), non_defered_rmse_list, label=str(i))
+		plt.legend()
+		plt.xlabel('No. of datapoints defered')
+		plt.xticks(range(0, ensemble_mus.shape[0]+1, (ensemble_mus.shape[0])//25))
+		# plt.yticks(range(0,30))
+		plt.title('feature set {}'.format(i))
+		plt.grid()
+
+	plt.savefig(config.plot_name)
+	plt.show()
+
+def run_all_folds(X, y, train, config):
+	kf = KFold(n_splits=config.n_folds, shuffle=True, random_state=42)
+	fold=1
+	all_rmses = []
+	all_nlls = []
+	n_feature_sets = len(X)
+	for train_index, test_index in kf.split(y):
+		print('Fold {}'.format(fold))
+
+		if config.dataset=='msd':
+			train_index = [x for x in range(463715)]
+			test_index = [x for x in range(463715, 515345)]
+
+		y_train, y_val = y[train_index], y[test_index]
+		x_train = [i[train_index] for i in X]
+		x_val = [i[test_index] for i in X]
+		for i in range(n_feature_sets):
+			x_train[i], x_val[i] = standard_scale(x_train[i], x_val[i])
+		rmse, nll = train_deep_ensemble(x_train, y_train, x_val, y_val, fold, config, train=train, verbose=config.verbose)
+		all_rmses.append(rmse)
+		all_nlls.append(nll)
+		fold+=1
+		print('='*20)
+
+		if config.dataset=='msd':
+			break
+
+	print('Final {} fold results'.format(config.n_folds))
+	print('val rmse {:.3f}, +/- {:.3f}'.format(np.mean(all_rmses), np.std(all_rmses)))
+	[print('feature set {}, val nll {:.3f}, +/- {:.3f}'.format(i, np.mean(all_nlls, axis=0)[i], np.std(all_nlls, axis=0)[i]))
+	 for i in range(n_feature_sets)]
+	print(['{:.3f} {:.3f}'.format(np.mean(all_nlls, axis=0)[i], np.std(all_nlls, axis=0)[i]) 
+		for i in range(n_feature_sets)])
 
 def standard_scale(x_train, x_test):
 	scalar = StandardScaler()
@@ -24,93 +83,31 @@ def standard_scale(x_train, x_test):
 	x_test = scalar.transform(x_test)
 	return x_train, x_test
 
-def create_feature_extractor_block(x, units):
-	# x = Dense(16, activation='relu')(x)
-	# x = BatchNormalization()(x)
-	# x = Dense(8, activation='relu')(x)
-	# x = BatchNormalization()(x)
-	# x = Dropout(0.2)(x)
-
-	x = Dense(units, activation='relu')(x)
-	return x
-
-def create_stddev_block(x):
-	# x = Dense(1, kernel_regularizer=tf.keras.regularizers.l2(0.01), activity_regularizer=tf.keras.regularizers.l1(0.01))(x)
-	x = Dense(1)(x)
-	return x
-
-def create_mu_block(x_list):
-	x = Concatenate()(x_list)
-	# x = Dense(8, activation='relu')(x)
-	# x = BatchNormalization()(x)
-	# x = Dense(1, kernel_regularizer=tf.keras.regularizers.l2(0.01), activity_regularizer=tf.keras.regularizers.l1(0.01))(x)
-	x = Dense(1)(x)
-	return x
-
-def create_gaussian_output(mu, stddev, name):
-	x = Concatenate()([mu, stddev])
-	x = tfp.layers.DistributionLambda(
-		lambda t: tfd.Normal(loc=t[..., :1], scale=tf.math.softplus(t[...,1:])+1e-6), name=name)(x)
-	return x
-
-def create_combined_model(feature_split_lengths):
-	'''
-	feature splits is a list of n features per splits
-	'''
-	n_feature_sets = len(feature_split_lengths)
-
-	inputs = []
-	for i in range(n_feature_sets):
-		inputs.append(Input((feature_split_lengths[i],)))
-
-	feature_extractors = []
-	for i in range(n_feature_sets):
-		# units = math.ceil(feature_split_lengths[i] * 50 / sum(feature_split_lengths) )
-		feature_extractors.append(create_feature_extractor_block(inputs[i], units = 50))
-
-	stddevs = []
-	for i in range(n_feature_sets):
-		stddevs.append(create_stddev_block(feature_extractors[i]))
-
-	mu = create_mu_block(feature_extractors)
-
-	outputs = []
-	for i in range(n_feature_sets):
-		outputs.append(create_gaussian_output(mu, stddevs[i], name='set_{}'.format(i)))
-
-	return tf.keras.models.Model(inputs=inputs, outputs=outputs)
-
 def train_a_model(
-	model_id, model_dir, fold,
+	model_id, fold,
 	x_train, y_train,
-	x_val, y_val):
+	x_val, y_val, config):
 
-	feature_split_lengths = [i.shape[1] for i in x_train]
-	model = create_combined_model(feature_split_lengths)
-	# lr = 0.01
-	# epochs = 2000	
-	lr = 0.1
-	epochs = 300
-
+	model,_ = models.build_model(config)
 
 	negloglik = lambda y, p_y: -p_y.log_prob(y)
 	custom_mse = lambda y, p_y: tf.keras.losses.mean_squared_error(y, p_y.mean())
 	# mse_wrapped = utils.MeanMetricWrapper(custom_mse, name='custom_mse')
 
-	checkpoint_filepath = os.path.join(model_dir, 'fold_{}_nll_{}.h5'.format(fold, model_id))
+	checkpoint_filepath = os.path.join(config.model_dir, 'fold_{}_nll_{}.h5'.format(fold, model_id))
 	checkpointer = tf.keras.callbacks.ModelCheckpoint(
 			checkpoint_filepath, monitor='val_loss', verbose=0, save_best_only=True,
 			save_weights_only=True, mode='auto', save_freq='epoch')
 
 
-	model.compile(optimizer=tf.optimizers.Adam(learning_rate=lr),
+	model.compile(optimizer=tf.optimizers.Adam(learning_rate=config.lr),
 				  loss=[negloglik]*len(x_train))
 				  # metrics=[mse_wrapped, mse_wrapped, mse_wrapped])
 
 	hist = model.fit(x_train, [y_train]*len(x_train),
-					batch_size=100,
-					epochs=epochs,
-					verbose=0,
+					batch_size=config.batch_size,
+					epochs=config.epochs,
+					verbose=config.verbose,
 					callbacks=[checkpointer],
 					validation_data=(x_val, [y_val]*len(x_train)))
 
@@ -123,7 +120,7 @@ def train_a_model(
 	print('Train NLL: {:.3f}'.format(best_epoch_train_loss)) 
 	print('Val NLL: {:.3f}'.format(best_epoch_val_loss)) 
 
-	model.load_weights(os.path.join(model_dir, 'fold_{}_nll_{}.h5'.format(fold, model_id)))
+	model.load_weights(os.path.join(config.model_dir, 'fold_{}_nll_{}.h5'.format(fold, model_id)))
 
 	return model, [best_epoch_train_loss, best_epoch_val_loss]
 
@@ -138,12 +135,12 @@ def train_deep_ensemble(x_train, y_train, x_val, y_val, fold, config, train=Fals
 	for model_id in range(config.n_models):
 
 		if train:
-			model, results = train_a_model(model_id, config.model_dir, fold, x_train, y_train, x_val, y_val)
+			model, results = train_a_model(model_id, fold, x_train, y_train, x_val, y_val, config)
 			train_nlls.append(results[0])
 			val_nlls.append(results[1])
 		else:
-			model = create_combined_model([i.shape[1] for i in x_train])
-			model.load_weights(os.path.join(model_dir, 'fold_{}_nll_{}.h5'.format(fold, model_id)))
+			model, _ = models.build_model(config)
+			model.load_weights(os.path.join(config.model_dir, 'fold_{}_nll_{}.h5'.format(fold, model_id)))
 
 		y_val = y_val.reshape(-1,1)
 		preds = model(x_val)
@@ -157,7 +154,7 @@ def train_deep_ensemble(x_train, y_train, x_val, y_val, fold, config, train=Fals
 		print('Val RMSE: {:.3f}'.format(val_rmse))
 
 		n_val_samples = y_val.shape[0]
-		if verbose == 1:
+		if verbose > 1:
 			for i in range(n_val_samples):
 				stddev_print_string = ''
 				for j in range(n_feature_sets):
@@ -168,18 +165,18 @@ def train_deep_ensemble(x_train, y_train, x_val, y_val, fold, config, train=Fals
 	ensemble_mus = np.mean(mus, axis=0).reshape(-1,1)
 	ensemble_sigmas = []
 	for i in range(n_feature_sets):
-		ensemble_sigma = np.sqrt(np.mean(np.square(featurewise_sigmas[i]) + np.square(mus), axis=0).reshape(-1,1) - np.square(ensemble_mus))
+		ensemble_sigma = np.sqrt(np.mean(np.square(featurewise_sigmas[i]) + np.square(ensemble_mus), axis=0).reshape(-1,1) - np.square(ensemble_mus))
 		ensemble_sigmas.append(ensemble_sigma)
 	
 	ensemble_val_rmse = mean_squared_error(y_val, ensemble_mus, squared=False)
 
 	print('Deep Ensemble val rmse {:.3f}'.format(ensemble_val_rmse))
-	if verbose == 1:
+	if verbose > 0:
 		print('Deep Ensemble Results')
 		for i in range(n_val_samples):
 			stddev_print_string = ''
 			for j in range(n_feature_sets):
-				stddev_print_string += '\tStd Dev set {}: {:.5f}'.format(j, ensemble_sigmas[j][i][0])
+				stddev_print_string += '\t\tStd Dev set {}: {:.5f}'.format(j, ensemble_sigmas[j][i][0])
 			print('Pred: {:.3f}'.format(ensemble_mus[i][0]), '\tTrue: {:.3f}'.format(y_val[i][0]), stddev_print_string)
 
 	ensemble_val_nll = []
@@ -188,66 +185,7 @@ def train_deep_ensemble(x_train, y_train, x_val, y_val, fold, config, train=Fals
 		ensemble_val_nll.append(-1*np.mean(distributions.log_prob(y_val)))
 	return ensemble_val_rmse, ensemble_val_nll
 
-# Config to choose the hyperparameters for everything
-class EasyDict(dict):
-    def __init__(self, *args, **kwargs): super().__init__(*args, **kwargs)
-    def __getattr__(self, name): return self[name]
-    def __setattr__(self, name, value): self[name] = value
-    def __delattr__(self, name): del self[name] 
-
-config = EasyDict({
-	'n_models' :  5,
-	'model_dir' : 'deepmind/boston',
-	# 'model_dir' : 'temp',
-	'dataset': 'boston',
-
-	'mod_split': 'computation_split',
-	'n_folds': 20,
-	'train': False,
-
-	'defer_fold': 'best',
-	# 'defer_fold': 'all',
-	# 'defer_fold': 'worst'
-	})
-
-data = load_dataset.load_dataset(config)
-n_feature_sets = len(data.keys()) - 1
-X = [np.array(data['{}'.format(i)]) for i in range(n_feature_sets)]
-y = np.array(data['y'])
-n_samples = len(y)
-
-print('Number of feature sets ', n_feature_sets)
-[print('Shape of feature set {} {}'.format(e, np.array(i).shape)) for e,i in enumerate(X)]
-
-model_dir = Path(config.model_dir)
-model_dir.mkdir(parents=True, exist_ok=True)
-
-kf = KFold(n_splits=config.n_folds, shuffle=True, random_state=42)
-fold=1
-all_rmses = []
-all_nlls = []
-for train_index, test_index in kf.split(y):
-	print('Fold {}'.format(fold))
-	y_train, y_val = y[train_index], y[test_index]
-	x_train = [i[train_index] for i in X]
-	x_val = [i[test_index] for i in X]
-	for i in range(n_feature_sets):
-		x_train[i], x_val[i] = standard_scale(x_train[i], x_val[i])
-	rmse, nll = train_deep_ensemble(x_train, y_train, x_val, y_val, fold, config, train=config.train)
-	all_rmses.append(rmse)
-	all_nlls.append(nll)
-	fold+=1
-	print('='*20)
-
-print('Final {} fold results'.format(config.n_folds))
-print('val rmse {:.3f}, +/- {:.3f}'.format(np.mean(all_rmses), np.std(all_rmses)))
-[print('feature set {}, val nll {:.3f}, +/- {:.3f}'.format(i, np.mean(all_nlls, axis=0)[i], 
-	np.std(all_nlls, axis=0)[i])) for i in range(n_feature_sets)]
-
-## DEFER CALIBRATION PLOT ##
-exit()
-
-def get_ensemble_predictions(X, y):
+def get_ensemble_predictions(X, y, config):
 	kf = KFold(n_splits=config.n_folds, shuffle=True, random_state=42)
 	fold = 1
 	all_mus, all_sigmas, true_values = [], [], []
@@ -263,8 +201,8 @@ def get_ensemble_predictions(X, y):
 		mus = []
 		featurewise_sigmas = [[] for i in range(n_feature_sets)]
 		for model_id in range(config.n_models):
-			model = create_combined_model([i.shape[1] for i in X])
-			model.load_weights(os.path.join(model_dir, 'fold_{}_nll_{}.h5'.format(fold, model_id)))
+			model, _ = models.build_model(config)
+			model.load_weights(os.path.join(config.model_dir, 'fold_{}_nll_{}.h5'.format(fold, model_id)))
 
 			y_val = y_val.reshape(-1,1)
 			preds = model(x_val)
@@ -290,7 +228,6 @@ def get_ensemble_predictions(X, y):
 	all_sigmas = np.reshape(all_sigmas, (-1, n_feature_sets))
 	true_values = np.reshape(true_values, (-1, 1))
 	return all_mus, all_sigmas, true_values
-
 
 def defer_analysis(true_values, predictions, defer_based_on):
 
@@ -322,21 +259,4 @@ def defer_analysis(true_values, predictions, defer_based_on):
 		# print('Not Defered RMSE : {:.3f}'.format(non_defered_rmse))
 	return defered_rmse_list, non_defered_rmse_list
 
-ensemble_mus, ensemble_sigmas, true_values = get_ensemble_predictions(X, y)
-for i in range(n_feature_sets):
-	print('feature set {}'.format(i))
-	defered_rmse_list, non_defered_rmse_list = defer_analysis(true_values, ensemble_mus, ensemble_sigmas[...,i])
 
-	# plt.subplot(n_feature_sets, 1, i+1)
-	# plt.plot(range(ensemble_mus.shape[0]+1), defered_rmse_list, label='Defered RMSE')
-	# plt.plot(range(ensemble_mus.shape[0]+1), non_defered_rmse_list, label='Non Defered RMSE')
-	plt.plot(range(ensemble_mus.shape[0]+1), non_defered_rmse_list, label=str(i))
-	plt.legend()
-	plt.xlabel('No. of datapoints defered')
-	plt.xticks(range(0, ensemble_mus.shape[0]+1, 20))
-	# plt.yticks(range(0,30))
-	plt.title('feature set {}'.format(i))
-	plt.grid()
-
-plt.savefig('temp.png')
-plt.show()
