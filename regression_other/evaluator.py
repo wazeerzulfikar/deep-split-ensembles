@@ -22,14 +22,15 @@ def standard_scale(x_train, x_test):
 def evaluate(config, data):
 
 	final_train_score, final_val_score = [], []
+	final_train_rmse, final_val_rmse = [], []
 	final_feature_models_train_score, final_feature_models_val_score = [], []
 
 	y = data['y']
 	kf = KFold(n_splits=config.n_folds, shuffle=True, random_state=42)
 	fold=1
 	for train_index, test_index in kf.split(y):
-	### starts here
 		print('~ Fold {} starting ~'.format(fold))
+
 		feature_sets = len(data)-1
 		feature_models_train_preds, feature_models_val_preds = [], []
 		feature_models_train_score, feature_models_val_score = [], []
@@ -44,7 +45,6 @@ def evaluate(config, data):
 				continue
 			else:
 				pass
-
 			X = data[str(feature_set)]
 			y = data['y']
 
@@ -60,14 +60,32 @@ def evaluate(config, data):
 			
 			train_preds, val_preds = [0]*len(x_train), [0]*len(x_val)
 
-			for model_number in range(config.n_models):
-				
-				if config.build_model=='point':
-					model, history = train_a_fold(fold, model_number+1, config, x_train, y_train, x_val, y_val)
+			mus_train, mus_val = [], []
+			sigmas_train, sigmas_val = [], []
 
+			for model_number in range(config.n_models):
+				model, history = train_a_fold(fold, model_number+1, config, x_train, y_train, x_val, y_val)
+
+				if config.build_model=='point':					
 					train_preds += model.predict(x_train)[:, 0]
 					val_preds += model.predict(x_val)[:, 0]
 
+				if config.build_model=='gaussian':
+					pred_train = model(x_train)
+					mu_train = pred_train.mean()
+					sigma_train = pred_train.stddev()
+					mus_train.append(mu_train.numpy())
+					sigmas_train.append(sigma_train.numpy())
+
+					pred_val = model(x_val)
+					mu_val = pred_val.mean()
+					sigma_val = pred_val.stddev()
+					mus_val.append(mu_val.numpy())
+					sigmas_val.append(sigma_val.numpy())
+
+					val_score = np.min(history.history['val_loss'])
+					train_score = history.history['loss'][np.argmin(history.history['val_loss'])]
+				
 			if config.build_model=='point':
 				train_preds /= config.n_models
 				val_preds /= config.n_models
@@ -78,24 +96,57 @@ def evaluate(config, data):
 				feature_models_train_score.append(mean_squared_error(y_train, np.array(train_preds), squared=False))
 				feature_models_val_score.append(mean_squared_error(y_val, np.array(val_preds), squared=False))
 
-		final_feature_models_train_score.append(np.array(feature_models_train_score))
-		final_feature_models_val_score.append(np.array(feature_models_val_score))
+		if config.build_model=='point':
+			final_feature_models_train_score.append(np.array(feature_models_train_score))
+			final_feature_models_val_score.append(np.array(feature_models_val_score))
 
-		final_train_preds = np.mean(np.array(feature_models_train_preds), axis=0)
-		final_val_preds = np.mean(np.array(feature_models_val_preds), axis=0)
-		final_train_score.append(mean_squared_error(y_train, final_train_preds, squared=False))
-		final_val_score.append(mean_squared_error(y_val, final_val_preds, squared=False))
+			final_train_preds = np.mean(np.array(feature_models_train_preds), axis=0)
+			final_val_preds = np.mean(np.array(feature_models_val_preds), axis=0)
+			final_train_score.append(mean_squared_error(y_train, final_train_preds, squared=False))
+			final_val_score.append(mean_squared_error(y_val, final_val_preds, squared=False))
+
+		if config.build_model=='gaussian':
+
+			mus_train, sigmas_train = np.concatenate(mus_train, axis=-1), np.concatenate(sigmas_train, axis=-1)
+			ensemble_mu_train = np.mean(mus_train, axis=-1).reshape(-1,1)
+			ensemble_sigma_train = np.sqrt(np.mean(np.square(sigmas_train) + np.square(mus_train), axis=-1).reshape(-1,1) - np.square(ensemble_mu_train))
 		
+			mus_val, sigmas_val = np.concatenate(mus_val, axis=-1), np.concatenate(sigmas_val, axis=-1)
+			ensemble_mu_val = np.mean(mus_val, axis=-1).reshape(-1,1)
+			ensemble_sigma_val = np.sqrt(np.mean(np.square(sigmas_val) + np.square(mus_val), axis=-1).reshape(-1,1) - np.square(ensemble_mu_val))
+		
+			tfd = tfp.distributions
+			ensemble_dist_train = tfd.Normal(loc=ensemble_mu_train, scale=ensemble_sigma_train)
+			ensemble_dist_val = tfd.Normal(loc=ensemble_mu_val, scale=ensemble_sigma_val)
+
+			ensemble_true_train_log_probs = ensemble_dist_train.log_prob(y_train).numpy()
+			final_train_score.append(np.mean(-ensemble_true_train_log_probs))
+			ensemble_true_val_log_probs = ensemble_dist_val.log_prob(y_val).numpy()
+			final_val_score.append(np.mean(-ensemble_true_val_log_probs))
+			final_train_rmse.append(mean_squared_error(y_train, ensemble_mu_train, squared=False))
+			final_val_rmse.append(mean_squared_error(y_val, ensemble_mu_val, squared=False))
+
 		if config.dataset=='msd':
 			break
 
 		fold+=1
-	# print("\nBest epochs : ", best_epochs)
+
 	if config.build_model=='point':
 		print("Featurewise Models Train RMSE:", ['{:.3f} +/- {:.3f}'.format(i, j) for i, j in zip(np.mean(final_feature_models_train_score, axis=0), np.std(final_feature_models_train_score, axis=0))])
 		print("Featurewise Models Val RMSE:", ['{:.3f} +/- {:.3f}'.format(i, j) for i, j in zip(np.mean(final_feature_models_val_score, axis=0), np.std(final_feature_models_val_score, axis=0))])
 		print("Ensemble Train RMSE: {:.3f} +/- {:.3f}".format(np.mean(final_train_score), np.std(final_train_score)))
 		print("Ensemble Val RMSE: {:.3f} +/- {:.3f}".format(np.mean(final_val_score), np.std(final_val_score)))
+	
+	if config.build_model=='gaussian':
+		print("\nTrain NLL : ", final_train_score)
+		print("Val NLL : ", final_val_score)
+		print("Train NLL mean : ", np.mean(final_train_score), "+/-", np.std(final_train_score))
+		print("Val NLL mean : ", np.mean(final_val_score), "+/-", np.std(final_val_score))
+		print("\nTrain RMSE : ", final_train_rmse)
+		print("Val RMSE : ", final_val_rmse)		
+		print("Train RMSE mean : ", np.mean(final_train_rmse), "+/-", np.std(final_train_rmse))
+		print("Val RMSE mean : ", np.mean(final_val_rmse), "+/-", np.std(final_val_rmse))
+
 
 	### ends here
 
