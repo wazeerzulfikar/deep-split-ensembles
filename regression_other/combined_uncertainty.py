@@ -191,27 +191,69 @@ def train_deep_ensemble(x_train, y_train, x_val, y_val, fold, config, train=Fals
 				print('Pred: {:.3f}'.format(mus[model_id][i][0]), '\tTrue: {:.3f}'.format(y_val[i][0]), stddev_print_string)
 		print('-'*20)
 
-	ensemble_mus = np.mean(mus, axis=0).reshape(-1,1)
-	ensemble_sigmas = []
-	for i in range(n_feature_sets):
-		ensemble_sigma = np.sqrt(np.mean(np.square(featurewise_sigmas[i]) + np.square(ensemble_mus), axis=0).reshape(-1,1) - np.square(ensemble_mus))
-		ensemble_sigmas.append(ensemble_sigma)
-	
+	# mus - (5, 26)
+	# std - (3, 5, 26)
+
+	if config.mixture_approximation == 'gaussian':
+		ensemble_mus = np.mean(mus, axis=0).reshape(-1,1)
+		ensemble_sigmas = []
+		for i in range(n_feature_sets):
+			ensemble_sigma = np.sqrt(np.mean(np.square(featurewise_sigmas[i]) + np.square(ensemble_mus), axis=0).reshape(-1,1) - np.square(ensemble_mus))
+			ensemble_sigmas.append(ensemble_sigma)
+
+		# ensemble_mus = np.squeeze(ensemble_mus, axis=-1)
+		# ensemble_sigmas = np.squeeze(ensemble_sigmas, axis=-1)
+
+		ensemble_val_nll = []
+		for i in range(n_feature_sets):
+			distributions = tfd.Normal(loc=ensemble_mus, scale=ensemble_sigmas[i])
+			ensemble_val_nll.append(-1*np.mean(distributions.log_prob(y_val)))
+
+	elif config.mixture_approximation == 'none':
+		mix_prob = 1/config.n_models
+		ensemble_normal = []
+		ensemble_normal_model = tf.keras.models.Sequential([
+				Input((config.n_models, 2)),
+				tfp.layers.DistributionLambda(
+					make_distribution_fn=lambda t: tfd.MixtureSameFamily(
+						mixture_distribution=tfd.Categorical(
+							probs=[mix_prob]*config.n_models),
+						components_distribution=tfd.Normal(
+							loc=t[...,0],       # One for each component.
+							scale=t[...,1])))
+			])
+		mus = np.squeeze(mus, axis=-1)
+		featurewise_sigmas = np.squeeze(featurewise_sigmas, axis=-1)
+
+		for i in range(n_feature_sets):
+			ensemble_normal.append(ensemble_normal_model(np.stack([np.array(mus).T,
+			 np.array(featurewise_sigmas[i]).T], axis=-1)))
+
+		ensemble_mus = ensemble_normal[0].mean().numpy()
+		ensemble_sigmas = []
+		for i in range(n_feature_sets):
+			ensemble_sigmas.append(ensemble_normal[i].stddev().numpy())
+
+		ensemble_val_nll = []
+		for i in range(n_feature_sets):
+			ensemble_val_nll.append(-1*np.mean(ensemble_normal[i].log_prob(y_val)))
+
+		ensemble_mus = np.expand_dims(ensemble_mus, axis=-1)
+		ensemble_sigmas = np.expand_dims(ensemble_sigmas, axis=-1)
+
+	#ensemble_normal 3, 26
 	ensemble_val_rmse = mean_squared_error(y_val, ensemble_mus, squared=False)
 
 	print('Deep Ensemble val rmse {:.3f}'.format(ensemble_val_rmse))
+	print('Deep Ensemble val nll {}'.format(ensemble_val_nll))
 	if verbose > 0:
 		print('Deep Ensemble Results')
 		for i in range(n_val_samples):
 			stddev_print_string = ''
 			for j in range(n_feature_sets):
-				stddev_print_string += '\t\tStd Dev set {}: {:.5f}'.format(j, ensemble_sigmas[j][i][0])
-			print('Pred: {:.3f}'.format(ensemble_mus[i][0]), '\tTrue: {:.3f}'.format(y_val[i][0]), stddev_print_string)
+				stddev_print_string += '\t\tStd Dev set {}: {:.5f}'.format(j, ensemble_sigmas[j][i])
+			print('Pred: {:.3f}'.format(ensemble_mus[i]), '\tTrue: {:.3f}'.format(y_val[i][0]), stddev_print_string)
 
-	ensemble_val_nll = []
-	for i in range(n_feature_sets):
-		distributions = tfd.Normal(loc=ensemble_mus, scale=ensemble_sigmas[i])
-		ensemble_val_nll.append(-1*np.mean(distributions.log_prob(y_val)))
 	return ensemble_val_rmse, ensemble_val_nll
 
 def get_ensemble_predictions(X, y, config):
