@@ -60,10 +60,16 @@ def run_all_folds(X, y, train, config):
 		x_val = [i[test_index] for i in X]
 		for i in range(n_feature_sets):
 			x_train[i], x_val[i] = standard_scale(x_train[i], x_val[i])
+
+		# x_val[0][:,3] = np.random.normal(loc=2, scale=3, size=x_val[0][:,3].shape)
+		# x_val[-1][:,0] = np.random.normal(loc=0, scale=1, size=x_val[-1][:,0].shape)
+
 		rmse, nll = train_deep_ensemble(x_train, y_train, x_val, y_val, fold, config, train=train, verbose=config.verbose)
 		all_rmses.append(rmse)
 		all_nlls.append(nll)
 		fold+=1
+		# if fold == 3:
+		# 	exit()
 		print('='*20)
 
 		if config.dataset=='msd':
@@ -100,16 +106,31 @@ def train_a_model(
 			save_weights_only=True, mode='auto', save_freq='epoch')
 
 
-	model.compile(optimizer=tf.optimizers.Adam(learning_rate=config.lr),
-				  loss=[negloglik]*len(x_train))
+	# model.compile(optimizer=tf.optimizers.Adam(learning_rate=config.lr),
+	# 			  loss=[negloglik]*len(x_train))
+
+	
 				  # metrics=[mse_wrapped, mse_wrapped, mse_wrapped])
 
-	hist = model.fit(x_train, [y_train]*len(x_train),
-					batch_size=config.batch_size,
-					epochs=config.epochs,
-					verbose=config.verbose,
-					callbacks=[checkpointer],
-					validation_data=(x_val, [y_val]*len(x_train)))
+	if config.build_model == 'combined_pog':
+		model.compile(optimizer=tf.optimizers.Adam(learning_rate=config.lr),
+					  loss=[negloglik]*len(x_train))
+		hist = model.fit(x_train, [y_train]*len(x_train),
+						batch_size=config.batch_size,
+						epochs=config.epochs,
+						verbose=config.verbose,
+						callbacks=[checkpointer],
+						validation_data=(x_val, [y_val]*len(x_train)))
+
+	elif config.build_model == 'combined_multivariate':
+		model.compile(optimizer=tf.optimizers.Adam(learning_rate=config.lr),
+					  loss=[negloglik])
+		hist = model.fit(x_train, y_train,
+						batch_size=config.batch_size,
+						epochs=config.epochs,
+						verbose=config.verbose,
+						callbacks=[checkpointer],
+						validation_data=(x_val, y_val))
 
 	epoch_val_losses = hist.history['val_loss']
 	best_epoch_val_loss, best_epoch = np.min(epoch_val_losses), np.argmin(epoch_val_losses)+1
@@ -144,13 +165,21 @@ def train_deep_ensemble(x_train, y_train, x_val, y_val, fold, config, train=Fals
 
 		y_val = y_val.reshape(-1,1)
 		preds = model(x_val)
+		# print(preds.shape)
 
 		ensemble_preds.append(preds)
-		mus.append(preds[0].mean().numpy())
-		for i in range(n_feature_sets):
-			featurewise_sigmas[i].append(preds[i].stddev().numpy())
+		if config.build_model == 'combined_multivariate':
+			mus.append(preds.mean().numpy()[:,0])
+		elif config.build_model == 'combined_pog':
+			mus.append(preds[0].mean().numpy())
 
-		val_rmse = mean_squared_error(y_val, mus[model_id], squared=False)
+		for i in range(n_feature_sets):
+			if config.build_model == 'combined_multivariate':
+				featurewise_sigmas[i].append(preds.stddev().numpy()[:,i:i+1])
+			elif config.build_model == 'combined_pog':
+				featurewise_sigmas[i].append(preds[i].stddev().numpy())
+
+		val_rmse = mean_squared_error(y_val,mus[model_id], squared=False)
 		print('Val RMSE: {:.3f}'.format(val_rmse))
 
 		n_val_samples = y_val.shape[0]
