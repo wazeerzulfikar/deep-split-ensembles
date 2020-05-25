@@ -4,6 +4,7 @@ import glob, os, math, time, re, csv
 from decimal import *
 import numpy as np
 import pandas as pd
+from sklearn.preprocessing import LabelEncoder
 from sklearn.datasets import load_boston
 np.random.seed(0)
 
@@ -88,6 +89,9 @@ def load_dataset(config):
 
     elif config.dataset=='msd':
         data = _msd(config)
+
+    elif config.dataset=='life':
+        data = _life(config)
     return data
 
 
@@ -386,6 +390,37 @@ def _msd(config):
         X1 = df[features1].values
         X2 = df[features2].values
         data = {'0':X1, '1':X2, 'y':y}
+
+    elif config.mod_split=='random':
+        X = random_split(config, df.values)
+        data = {'y':y}
+        for i, x in enumerate(X):
+            data[str(i)] = x
+
+    elif config.mod_split=='computation_split':
+        X = feature_split(config, df.values)
+        data = {'y':y}
+        for i, x in enumerate(X):
+            data[str(i)] = x
+
+    return data
+
+def _life(config):
+    data_df = pd.read_csv(os.path.join(config.regression_datasets_dir, 'life_expectancy.csv'))
+    data_df[['Country']] = data_df[['Country']].apply(LabelEncoder().fit_transform)
+    data_df[['Status']] = data_df[['Status']].apply(LabelEncoder().fit_transform)
+    data_df = data_df.dropna()
+    
+    target_col = 'Life expectancy '
+    
+    y = data_df[target_col]
+
+    df = data_df.drop(columns=[target_col])
+    cols = df.columns.tolist()
+    
+    if config.mod_split=='none':
+        X = df.values
+        data = {'0':X, 'y':y}
 
     elif config.mod_split=='random':
         X = random_split(config, df.values)
