@@ -23,12 +23,14 @@ def evaluate(config, data):
 
 	final_train_score, final_val_score = [], []
 	final_train_rmse, final_val_rmse = [], []
+	
 	final_feature_models_train_score, final_feature_models_val_score = [], []
 
 	y = data['y']
 	kf = KFold(n_splits=config.n_folds, shuffle=True, random_state=42)
 	fold=1
 	for train_index, test_index in kf.split(y):
+
 		print('~ Fold {} starting ~'.format(fold))
 
 		feature_sets = len(data)-1
@@ -55,6 +57,7 @@ def evaluate(config, data):
 			y_val = np.asarray(y[test_index])
 
 			x_train, x_val = standard_scale(x_train, x_val)
+			y_train, y_val = np.expand_dims(y_train, axis=-1), np.expand_dims(y_val, axis=-1)
 
 			fold_train_score, fold_val_score = [], []
 			
@@ -65,6 +68,8 @@ def evaluate(config, data):
 
 			for model_number in range(config.n_models):
 				model, history = train_a_fold(fold, model_number+1, config, x_train, y_train, x_val, y_val)
+
+				print("\nModel ", model_number)
 
 				if config.build_model=='point':					
 					train_preds += model.predict(x_train)[:, 0]
@@ -82,9 +87,10 @@ def evaluate(config, data):
 					sigma_val = pred_val.stddev()
 					mus_val.append(mu_val.numpy())
 					sigmas_val.append(sigma_val.numpy())
-
 					val_score = np.min(history.history['val_loss'])
 					train_score = history.history['loss'][np.argmin(history.history['val_loss'])]
+					print("Train loss : ", train_score)
+					print("Val loss : ", val_score)
 				
 			if config.build_model=='point':
 				train_preds /= config.n_models
@@ -96,6 +102,27 @@ def evaluate(config, data):
 				feature_models_train_score.append(mean_squared_error(y_train, np.array(train_preds), squared=False))
 				feature_models_val_score.append(mean_squared_error(y_val, np.array(val_preds), squared=False))
 
+			if config.build_model=='gaussian':
+
+				mus_train, sigmas_train = np.concatenate(mus_train, axis=-1), np.concatenate(sigmas_train, axis=-1)
+				ensemble_mu_train = np.mean(mus_train, axis=-1).reshape(-1,1)
+				ensemble_sigma_train = np.sqrt(np.mean(np.square(sigmas_train) + np.square(mus_train), axis=-1).reshape(-1,1) - np.square(ensemble_mu_train))
+				
+				mus_val, sigmas_val = np.concatenate(mus_val, axis=-1), np.concatenate(sigmas_val, axis=-1)
+				ensemble_mu_val = np.mean(mus_val, axis=-1).reshape(-1,1)
+				ensemble_sigma_val = np.sqrt(np.mean(np.square(sigmas_val) + np.square(mus_val), axis=-1).reshape(-1,1) - np.square(ensemble_mu_val))
+
+				tfd = tfp.distributions
+				ensemble_dist_train = tfd.Normal(loc=ensemble_mu_train, scale=ensemble_sigma_train)
+				ensemble_dist_val = tfd.Normal(loc=ensemble_mu_val, scale=ensemble_sigma_val)
+				ensemble_true_train_log_probs = ensemble_dist_train.log_prob(y_train).numpy()
+				ensemble_true_val_log_probs = ensemble_dist_val.log_prob(y_val).numpy()
+								
+				final_train_score.append(np.mean(-ensemble_true_train_log_probs))
+				final_val_score.append(np.mean(-ensemble_true_val_log_probs))
+				final_train_rmse.append(mean_squared_error(y_train, ensemble_mu_train, squared=False))
+				final_val_rmse.append(mean_squared_error(y_val, ensemble_mu_val, squared=False))
+				
 		if config.build_model=='point':
 			final_feature_models_train_score.append(np.array(feature_models_train_score))
 			final_feature_models_val_score.append(np.array(feature_models_val_score))
@@ -105,27 +132,7 @@ def evaluate(config, data):
 			final_train_score.append(mean_squared_error(y_train, final_train_preds, squared=False))
 			final_val_score.append(mean_squared_error(y_val, final_val_preds, squared=False))
 
-		if config.build_model=='gaussian':
-
-			mus_train, sigmas_train = np.concatenate(mus_train, axis=-1), np.concatenate(sigmas_train, axis=-1)
-			ensemble_mu_train = np.mean(mus_train, axis=-1).reshape(-1,1)
-			ensemble_sigma_train = np.sqrt(np.mean(np.square(sigmas_train) + np.square(mus_train), axis=-1).reshape(-1,1) - np.square(ensemble_mu_train))
-		
-			mus_val, sigmas_val = np.concatenate(mus_val, axis=-1), np.concatenate(sigmas_val, axis=-1)
-			ensemble_mu_val = np.mean(mus_val, axis=-1).reshape(-1,1)
-			ensemble_sigma_val = np.sqrt(np.mean(np.square(sigmas_val) + np.square(mus_val), axis=-1).reshape(-1,1) - np.square(ensemble_mu_val))
-		
-			tfd = tfp.distributions
-			ensemble_dist_train = tfd.Normal(loc=ensemble_mu_train, scale=ensemble_sigma_train)
-			ensemble_dist_val = tfd.Normal(loc=ensemble_mu_val, scale=ensemble_sigma_val)
-
-			ensemble_true_train_log_probs = ensemble_dist_train.log_prob(y_train).numpy()
-			final_train_score.append(np.mean(-ensemble_true_train_log_probs))
-			ensemble_true_val_log_probs = ensemble_dist_val.log_prob(y_val).numpy()
-			final_val_score.append(np.mean(-ensemble_true_val_log_probs))
-			final_train_rmse.append(mean_squared_error(y_train, ensemble_mu_train, squared=False))
-			final_val_rmse.append(mean_squared_error(y_val, ensemble_mu_val, squared=False))
-
+			
 		if config.dataset=='msd':
 			break
 
