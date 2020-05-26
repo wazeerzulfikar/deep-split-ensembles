@@ -413,12 +413,12 @@ def _life(config):
     
     target_col = 'Life expectancy '
     
-    y = data_df[target_col]
+    y = np.asarray(data_df[target_col])
 
     df = data_df.drop(columns=[target_col])
     cols = df.columns.tolist()
     
-    if config.mod_split=='none':
+    if config.mod_split=='none' or config.mod_split=='human':
         X = df.values
         data = {'0':X, 'y':y}
 
