@@ -335,13 +335,14 @@ def _wine(config):
         data = {'0':X, 'y':y}
 
     if config.mod_split=='human':
-        features1 = ['fixed acidity', 'volatile acidity', 'density', 'pH']
-        features2 = ['citric acid', 'residual sugar', 'chlorides','free sulfur dioxide',
-                    'total sulfur dioxide', 'sulphates', 'alcohol']
+        features1 = ['alcohol', 'pH', 'fixed acidity', 'density', 'residual sugar']
+        features2 = ['volatile acidity', 'citric acid']
+        features3 = ['chlorides','free sulfur dioxide', 'total sulfur dioxide', 'sulphates']
 
         X1 = df[features1].values
         X2 = df[features2].values
-        data = {'0':X1, '1':X2, 'y':y}
+        X3 = df[features3].values
+        data = {'0':X1, '1':X2, '2':X3, 'y':y}
 
     elif config.mod_split=='random':
         X = random_split(config, df.values)
@@ -523,7 +524,8 @@ class EasyDict(dict):
     def __delattr__(self, name): del self[name] 
 
 def _alzheimers(config):
-    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    # sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    sys.path.append('..')
     import dataset as alzheimers_dataset
 
     config = EasyDict({
