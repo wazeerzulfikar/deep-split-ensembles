@@ -21,26 +21,6 @@ def train(X, y, config):
 
 def evaluate(X, y, config):
 	run_all_folds(X, y, train=False, config=config)
-	
-def plot(X, y, config):
-	ensemble_mus, ensemble_sigmas, true_values = get_ensemble_predictions(X, y, config)
-	for i in range(config.n_feature_sets):
-		print('feature set {}'.format(i))
-		defered_rmse_list, non_defered_rmse_list = defer_analysis(true_values, ensemble_mus, ensemble_sigmas[...,i])
-
-		# plt.subplot(n_feature_sets, 1, i+1)
-		# plt.plot(range(ensemble_mus.shape[0]+1), defered_rmse_list, label='Defered RMSE')
-		# plt.plot(range(ensemble_mus.shape[0]+1), non_defered_rmse_list, label='Non Defered RMSE')
-		plt.plot(range(ensemble_mus.shape[0]+1), non_defered_rmse_list, label=str(i))
-		plt.legend()
-		plt.xlabel('No. of datapoints defered')
-		plt.xticks(range(0, ensemble_mus.shape[0]+1, (ensemble_mus.shape[0])//25))
-		# plt.yticks(range(0,30))
-		plt.title('feature set {}'.format(i))
-		plt.grid()
-
-	plt.savefig(config.plot_name)
-	plt.show()
 
 def run_all_folds(X, y, train, config):
 	kf = KFold(n_splits=config.n_folds, shuffle=True, random_state=42)
@@ -60,9 +40,6 @@ def run_all_folds(X, y, train, config):
 		x_val = [i[test_index] for i in X]
 		for i in range(n_feature_sets):
 			x_train[i], x_val[i] = standard_scale(x_train[i], x_val[i])
-
-		# x_val[0][:,3] = np.random.normal(loc=2, scale=3, size=x_val[0][:,3].shape)
-		# x_val[-1][:,0] = np.random.normal(loc=0, scale=1, size=x_val[-1][:,0].shape)
 
 		rmse, nll = train_deep_ensemble(x_train, y_train, x_val, y_val, fold, config, train=train, verbose=config.verbose)
 		all_rmses.append(rmse)
@@ -256,78 +233,5 @@ def train_deep_ensemble(x_train, y_train, x_val, y_val, fold, config, train=Fals
 
 	return ensemble_val_rmse, ensemble_val_nll
 
-def get_ensemble_predictions(X, y, config):
-	kf = KFold(n_splits=config.n_folds, shuffle=True, random_state=42)
-	fold = 1
-	all_mus, all_sigmas, true_values = [], [], []
-	n_feature_sets = len(X)
-	for train_index, test_index in kf.split(y):
-		# if fold == fold_to_use:
-		print('Fold ', fold)
-		y_train, y_val = y[train_index], y[test_index]
-		x_train = [i[train_index] for i in X]
-		x_val = [i[test_index] for i in X]
-		for i in range(n_feature_sets):
-			x_train[i], x_val[i] = standard_scale(x_train[i], x_val[i])
-		mus = []
-		featurewise_sigmas = [[] for i in range(n_feature_sets)]
-		for model_id in range(config.n_models):
-			model, _ = models.build_model(config)
-			model.load_weights(os.path.join(config.model_dir, 'fold_{}_nll_{}.h5'.format(fold, model_id)))
-
-			y_val = y_val.reshape(-1,1)
-			preds = model(x_val)
-
-			mus.append(preds[0].mean().numpy())
-			for i in range(n_feature_sets):
-				featurewise_sigmas[i].append(preds[i].stddev().numpy())
-
-		ensemble_mus = np.mean(mus, axis=0).reshape(-1,1)
-		ensemble_sigmas = []
-		for i in range(n_feature_sets):
-			ensemble_sigma = np.sqrt(np.mean(np.square(featurewise_sigmas[i]) + np.square(mus), axis=0).reshape(-1,1) - np.square(ensemble_mus))
-			ensemble_sigmas.append(ensemble_sigma)
-
-		for i in range(y_val.shape[0]):
-			all_mus.append(ensemble_mus[i])
-			all_sigmas.append([ensemble_sigmas[j][i] for j in range(n_feature_sets)])
-			true_values.append(y_val[i])
-		fold+=1
-		val_rmse = mean_squared_error(y_val, ensemble_mus, squared=False)
-		print('Val RMSE: {:.3f}'.format(val_rmse))
-	all_mus = np.reshape(all_mus, (-1,1))
-	all_sigmas = np.reshape(all_sigmas, (-1, n_feature_sets))
-	true_values = np.reshape(true_values, (-1, 1))
-	return all_mus, all_sigmas, true_values
-
-def defer_analysis(true_values, predictions, defer_based_on):
-
-	defered_rmse_list, non_defered_rmse_list = [], []
-	for i in range(predictions.shape[0]+1):
-		if i==predictions.shape[0]:
-			defered_rmse = mean_squared_error(true_values, predictions, squared=False)
-		elif i==0:
-			defered_rmse = 0
-		else:
-			defered_rmse = mean_squared_error(
-				true_values[np.argsort(defer_based_on)][-i:], 
-				predictions[np.argsort(defer_based_on)][-i:], squared=False)
-		defered_rmse_list.append(defered_rmse)
-
-		if i==0:
-			non_defered_rmse = mean_squared_error(true_values, predictions, squared=False)
-		elif i==predictions.shape[0]:
-			non_defered_rmse = 0
-		else:
-			non_defered_rmse = mean_squared_error(
-				true_values[np.argsort(defer_based_on)][:-i], 
-				predictions[np.argsort(defer_based_on)][:-i], squared=False)
-
-		non_defered_rmse_list.append(non_defered_rmse)
-		# print('\n{} datapoints deferred'.format(i))
-
-		# print('Defered RMSE : {:.3f}'.format(defered_rmse))
-		# print('Not Defered RMSE : {:.3f}'.format(non_defered_rmse))
-	return defered_rmse_list, non_defered_rmse_list
 
 
