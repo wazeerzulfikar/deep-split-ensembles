@@ -198,12 +198,21 @@ def _energy_efficiency(config):
         data = {'0':X, 'y':y}
 
     if config.mod_split=='human':
-        features1 = ['Wall Area', 'Roof Area', 'Glazing Area', 'Glazing Area Distribution']
-        features2 = ['Relative Compactness', 'Surface Area', 'Overall Height', 'Orientation']
+        # X5
+        # X1, X2, X3, X4
+        # X7, X8
+        # X6
+
+        features1 = ['Overall Height']
+        features2 = ['Relative Compactness', 'Surface Area', 'Wall Area', 'Roof Area']
+        features3 = ['Glazing Area', 'Glazing Area Distribution']
+        features4 = ['Orientation']
 
         X1 = df[features1].values
         X2 = df[features2].values
-        data = {'0':X1, '1':X2, 'y':y}
+        X3 = df[features3].values
+        X4 = df[features4].values
+        data = {'0':X1, '1':X2, '2':X3, '3':X4, 'y':y}
 
     elif config.mod_split=='random':
         X = random_split(config, df.values)
@@ -266,8 +275,11 @@ def _power_plant(config):
         data = {'0':X, 'y':y}
 
     elif config.mod_split=='human':
-        features1 = ['AT', 'RH']
-        features2 = ['V', 'AP']
+        # T, AP, RH
+        # V
+
+        features1 = ['AT', 'AP', 'RH']
+        features2 = ['V']
         X1 = df[features1].values
         X2 = df[features2].values
         data = {'0':X1, '1':X2, 'y':y}
