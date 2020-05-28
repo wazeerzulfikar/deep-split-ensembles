@@ -13,6 +13,8 @@ np.random.seed(0)
 import matplotlib.pyplot as plt
 
 import models
+import utils_compare
+import load_dataset
 
 tfd = tfp.distributions
 
@@ -38,8 +40,20 @@ def run_all_folds(X, y, train, config):
 		y_train, y_val = y[train_index], y[test_index]
 		x_train = [i[train_index] for i in X]
 		x_val = [i[test_index] for i in X]
-		for i in range(n_feature_sets):
-			x_train[i], x_val[i] = standard_scale(x_train[i], x_val[i])
+		if config.dataset in ['alzheimers_test']:
+			alzheimers_test_data = load_dataset._alzheimers_test(config)
+			x_val = [np.array(alzheimers_test_data['{}'.format(i)]) for i in range(n_feature_sets)]
+			y_val = np.array(alzheimers_test_data['y'])
+			print('Alzheimers Testing..')
+			[print('Shape of feature set {} {}'.format(e, np.array(i).shape)) for e,i in enumerate(x_val)]
+
+		if config.dataset in ['alzheimers', 'alzheimers_test']:
+			assert x_train[-1].shape[-1] == 6373, 'not compare'
+			x_train[-1], x_val[-1] = utils_compare.normalize_compare_features(x_train[-1], x_val[-1])
+
+		else:
+			for i in range(n_feature_sets):
+				x_train[i], x_val[i] = standard_scale(x_train[i], x_val[i])
 
 		rmse, nll = train_deep_ensemble(x_train, y_train, x_val, y_val, fold, config, train=train, verbose=config.verbose)
 		all_rmses.append(rmse)
@@ -49,7 +63,7 @@ def run_all_folds(X, y, train, config):
 		# 	exit()
 		print('='*20)
 
-		if config.dataset=='msd':
+		if config.dataset in ['msd', 'alzheimers', 'alzheimers_test']:
 			break
 
 	print('Final {} fold results'.format(config.n_folds))
@@ -228,8 +242,8 @@ def train_deep_ensemble(x_train, y_train, x_val, y_val, fold, config, train=Fals
 		for i in range(n_val_samples):
 			stddev_print_string = ''
 			for j in range(n_feature_sets):
-				stddev_print_string += '\t\tStd Dev set {}: {:.5f}'.format(j, ensemble_sigmas[j][i])
-			print('Pred: {:.3f}'.format(ensemble_mus[i]), '\tTrue: {:.3f}'.format(y_val[i][0]), stddev_print_string)
+				stddev_print_string += '\t\tStd Dev set {}: {:.5f}'.format(j, ensemble_sigmas[j][i][0])
+			print('Pred: {:.3f}'.format(ensemble_mus[i][0]), '\tTrue: {:.3f}'.format(y_val[i][0]), stddev_print_string)
 
 	return ensemble_val_rmse, ensemble_val_nll
 

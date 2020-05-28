@@ -15,6 +15,8 @@ from sklearn.preprocessing import scale
 from scipy.cluster.hierarchy import linkage, fcluster, dendrogram
 from scipy.spatial.distance import pdist
 
+import sys 
+
 def random_split(config, features):
     data = np.transpose(features)
     clusters = feature_split(config, features, return_split_sizes=True)
@@ -40,9 +42,13 @@ def feature_split(config, features, return_split_sizes=False):
 
     ######### Hierarchical Clustering based on correlation
     Y = pdist(data, 'correlation')
+
     linkage = linkage(Y, 'complete')
+    
     # dendrogram(linkage, color_threshold=0)
     # plt.show()
+    if config.dataset == 'energy_efficiency':
+        linkage = np.load('energy_efficiency_linkage.npy')
     if config.dataset=='msd':
         clusters = fcluster(linkage, 0.75 * Y.max(), 'distance')
     else:
@@ -56,6 +62,12 @@ def feature_split(config, features, return_split_sizes=False):
         indices = [j for j in range(len(clusters)) if clusters[j]==cluster]
         # print(indices)
         X.append(np.transpose(data[indices]))
+    return X
+
+def feature_as_a_cluster(config, features):
+    X = []
+    for idx in range(features.shape[-1]):
+        X.append(features[:,idx].reshape(-1,1))
     return X
 
 def load_dataset(config):
@@ -92,6 +104,13 @@ def load_dataset(config):
 
     elif config.dataset=='life':
         data = _life(config)
+
+    elif config.dataset=='alzheimers':
+        data = _alzheimers(config)
+
+    elif config.dataset=='alzheimers_test':
+        data = _alzheimers(config)
+
     return data
 
 
@@ -124,6 +143,12 @@ def _boston(config):
         for i, x in enumerate(X):
             data[str(i)] = x
 
+    elif config.mod_split=='feature_as_a_cluster':
+        X = feature_as_a_cluster(config, df.values)
+        data = {'y':y}
+        for i, x in enumerate(X):
+            data[str(i)] = x
+
     return data
 
 def _cement(config):
@@ -146,6 +171,12 @@ def _cement(config):
 
     elif config.mod_split=='computation_split':
         X = feature_split(config, df.values)
+        data = {'y':y}
+        for i, x in enumerate(X):
+            data[str(i)] = x
+
+    elif config.mod_split=='feature_as_a_cluster':
+        X = feature_as_a_cluster(config, df.values)
         data = {'y':y}
         for i, x in enumerate(X):
             data[str(i)] = x
@@ -186,6 +217,12 @@ def _energy_efficiency(config):
         for i, x in enumerate(X):
             data[str(i)] = x
 
+    elif config.mod_split=='feature_as_a_cluster':
+        X = feature_as_a_cluster(config, df.values)
+        data = {'y':y}
+        for i, x in enumerate(X):
+            data[str(i)] = x
+
     return data
 
 def _kin8nm(config):
@@ -206,6 +243,12 @@ def _kin8nm(config):
 
     elif config.mod_split=='computation_split':
         X = feature_split(config, df.values)
+        data = {'y':y}
+        for i, x in enumerate(X):
+            data[str(i)] = x
+
+    elif config.mod_split=='feature_as_a_cluster':
+        X = feature_as_a_cluster(config, df.values)
         data = {'y':y}
         for i, x in enumerate(X):
             data[str(i)] = x
@@ -241,6 +284,12 @@ def _power_plant(config):
         for i, x in enumerate(X):
             data[str(i)] = x
 
+    elif config.mod_split=='feature_as_a_cluster':
+        X = feature_as_a_cluster(config, df.values)
+        data = {'y':y}
+        for i, x in enumerate(X):
+            data[str(i)] = x
+
     return data
 
 def _protein(config):
@@ -262,6 +311,12 @@ def _protein(config):
 
     elif config.mod_split=='computation_split':
         X = feature_split(config, df.values)
+        data = {'y':y}
+        for i, x in enumerate(X):
+            data[str(i)] = x
+
+    elif config.mod_split=='feature_as_a_cluster':
+        X = feature_as_a_cluster(config, df.values)
         data = {'y':y}
         for i, x in enumerate(X):
             data[str(i)] = x
@@ -300,6 +355,12 @@ def _wine(config):
         for i, x in enumerate(X):
             data[str(i)] = x
 
+    elif config.mod_split=='feature_as_a_cluster':
+        X = feature_as_a_cluster(config, df.values)
+        data = {'y':y}
+        for i, x in enumerate(X):
+            data[str(i)] = x
+
     return data
 
 def _yacht(config):
@@ -322,6 +383,12 @@ def _yacht(config):
 
     elif config.mod_split=='computation_split':
         X = feature_split(config, df.values)
+        data = {'y':y}
+        for i, x in enumerate(X):
+            data[str(i)] = x
+
+    elif config.mod_split=='feature_as_a_cluster':
+        X = feature_as_a_cluster(config, df.values)
         data = {'y':y}
         for i, x in enumerate(X):
             data[str(i)] = x
@@ -368,6 +435,12 @@ def _naval(config):
         for i, x in enumerate(X):
             data[str(i)] = x
 
+    elif config.mod_split=='feature_as_a_cluster':
+        X = feature_as_a_cluster(config, df.values)
+        data = {'y':y}
+        for i, x in enumerate(X):
+            data[str(i)] = x
+
     return data
 
 def _msd(config):
@@ -403,6 +476,12 @@ def _msd(config):
         for i, x in enumerate(X):
             data[str(i)] = x
 
+    elif config.mod_split=='feature_as_a_cluster':
+        X = feature_as_a_cluster(config, df.values)
+        data = {'y':y}
+        for i, x in enumerate(X):
+            data[str(i)] = x
+
     return data
 
 def _life(config):
@@ -412,13 +491,13 @@ def _life(config):
     data_df = data_df.dropna()
     
     target_col = 'Life expectancy '
-    
-    y = np.asarray(data_df[target_col])
+
+    y = data_df[target_col]
 
     df = data_df.drop(columns=[target_col])
     cols = df.columns.tolist()
     
-    if config.mod_split=='none' or config.mod_split=='human':
+    if config.mod_split=='none':
         X = df.values
         data = {'0':X, 'y':y}
 
@@ -434,4 +513,55 @@ def _life(config):
         for i, x in enumerate(X):
             data[str(i)] = x
 
+    return data
+
+
+class EasyDict(dict):
+    def __init__(self, *args, **kwargs): super().__init__(*args, **kwargs)
+    def __getattr__(self, name): return self[name]
+    def __setattr__(self, name, value): self[name] = value
+    def __delattr__(self, name): del self[name] 
+
+def _alzheimers(config):
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    import dataset as alzheimers_dataset
+
+    config = EasyDict({
+        # 'task': 'classification',
+        'task': 'regression',
+
+        # 'dataset_dir': '../DementiaBank'
+        'dataset_dir': 'datasets/ADReSS-IS2020-data/train',
+
+        'longest_speaker_length': 32,
+        'n_pause_features': 11,
+        'compare_features_size': 21,
+    })
+    alzheimers_data = alzheimers_dataset.prepare_data(config)
+
+    data = {}
+    data['y'] = alzheimers_data['y_reg']
+    data['0'] = alzheimers_data['intervention']
+    data['1'] = alzheimers_data['pause']
+    data['2'] = alzheimers_data['compare']
+    return data
+
+def _alzheimers_test(config):
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    import dataset as alzheimers_dataset
+
+    config = EasyDict({
+        'dataset_dir': 'datasets/ADReSS-IS2020-data/test',
+
+        'longest_speaker_length': 32,
+        'n_pause_features': 11,
+        'compare_features_size': 21,
+    })
+    alzheimers_data = alzheimers_dataset.prepare_test_data(config)
+
+    data = {}
+    data['y'] = alzheimers_data['y_reg']
+    data['0'] = alzheimers_data['intervention']
+    data['1'] = alzheimers_data['pause']
+    data['2'] = alzheimers_data['compare']
     return data

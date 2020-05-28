@@ -232,3 +232,62 @@ def prepare_data(config):
 		'y_reg': y_reg,
 		'subjects': subjects
 	}
+
+def prepare_test_data(config):
+	'''
+	Prepare all data
+	'''
+	dataset_dir = config.dataset_dir
+	################################## SUBJECTS ################################
+	subject_files = sorted(glob.glob(os.path.join(dataset_dir, 'transcription/*.cha')))
+	subjects = np.array(sorted(list(set([re.split('[/-]', i)[-2] for i in subject_files]))))
+	######################################################################
+
+
+	################################## INTERVENTION ####################################
+	test_files = sorted(glob.glob(os.path.join(dataset_dir, 'transcription/*.cha')))
+	all_speakers_test = []
+	for filename in test_files:
+		all_speakers_test.append(get_intervention_features(filename, config.longest_speaker_length))
+
+
+	X_intervention = np.array(all_speakers_test).astype(np.float32)
+	################################## INTERVENTION ####################################
+
+	################################## PAUSE ####################################
+	test_transcription_files = sorted(glob.glob(os.path.join(dataset_dir, 'transcription/*.cha')))
+	if dataset_dir == '../DementiaBank':
+		test_audio_files = sorted(glob.glob(os.path.join(dataset_dir, 'Full_wave_enhanced_audio/*.mp3')))
+	else:
+		test_audio_files = sorted(glob.glob(os.path.join(dataset_dir, 'Full_wave_enhanced_audio/*.wav')))
+
+	all_counts_test = []
+	for t_f, a_f in zip(test_transcription_files, test_audio_files):
+		pause_features = get_pause_features(t_f, a_f)
+		all_counts_test.append(pause_features)
+	
+	X_pause = np.array(all_counts_test).astype(np.float32)
+	################################## PAUSE ####################################
+
+	################################## COMPARE ####################################
+	test_files = sorted(glob.glob(os.path.join(dataset_dir, 'compare/*.csv')))
+	X_compare = np.array([get_compare_features(f) for f in test_files])
+	################################## COMPARE ####################################
+
+	y_reg = utils.get_regression_values(os.path.join(dataset_dir, 'test_metadata.txt'))
+
+	y_reg = np.array(y_reg).astype(np.float32)
+
+	assert X_intervention.shape[0]==X_pause.shape[0] and y_reg.shape[0]==X_intervention.shape[0], '~ Data streams are different ~'
+	print('~ Data streams verified ~')
+
+
+	return {
+		'intervention': X_intervention,
+		'pause': X_pause,
+		'compare': X_compare,
+		# 'y_clf': y,
+		'y_reg': y_reg,
+		'subjects': subjects
+	}
+

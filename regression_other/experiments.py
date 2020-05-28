@@ -148,6 +148,9 @@ def plot_toy_regression(config):
 
 def plot_calibration(X, y, config):
 	ensemble_mus, ensemble_sigmas, true_values, _ = get_ensemble_predictions(X, y, ood=False, config=config)
+	fig = plt.figure()
+	# fig.set_size_inches(30.,18.)
+
 	for i in range(config.n_feature_sets):
 		print('feature set {}'.format(i))
 		defered_rmse_list, non_defered_rmse_list = defer_analysis(true_values, ensemble_mus, ensemble_sigmas[...,i])
@@ -161,11 +164,18 @@ def plot_calibration(X, y, config):
 		plt.plot(range(use_samples+1), non_defered_rmse_list, label='Cluster '+str(i+1))
 		plt.legend(loc='lower left')
 		plt.xlabel('No. of Datapoints Deferred')
-		plt.ylabel('Root Mean Squared Error')
+		# plt.ylabel('Root Mean Squared Error')
 		plt.xticks(range(0, use_samples+1, (use_samples)//10))
 		plt.title(config.dataset.capitalize().replace('_',' '))
 
-	plt.savefig(config.plot_name)
+		if config.dataset == 'boston':
+			plt.title('Boston housing')
+		if config.dataset == 'energy_efficiency':
+			plt.title('Energy')
+
+
+	plt.tight_layout()
+	plt.savefig(config.plot_name, dpi=1200)
 	plt.show()
 
 
@@ -197,14 +207,25 @@ def plot_ood_helper(ensemble_entropies, plot_name, config):
 
 		plt.legend(loc='upper right')
 
-	# plt.xlim(0,8)
-	# plt.ylim(0,3)
+	plt.xlim(0,6)
+
+	if config.dataset == 'boston':
+		plt.ylim(0,3)
+
+	if config.dataset == 'energy_efficiency':
+		plt.ylim(0,9)
+
+	if config.dataset == 'wine':
+		plt.ylim(0,13)
+
+	if config.dataset == 'cement':
+		plt.ylim(0,7)
 
 	plt.xlabel('Entropy Values')
 	plt.ylabel('Density')
-	# plt.title('Wine')
 	plt.savefig(plot_name)
 	# plt.show()
+	plt.clf()
 
 
 def standard_scale(x_train, x_test):
@@ -235,7 +256,7 @@ def get_ensemble_predictions(X, y, ood=False, config=None):
 		if ood == 2:
 			x_val[1][:,0] = np.random.normal(loc=6, scale=2, size=x_val[1][:,0].shape)
 		if ood == 3:
-			x_val[0][:,0] = np.random.normal(loc=12, scale=1, size=x_val[0][:,0].shape)
+			x_val[0][:,0] = np.random.normal(loc=6, scale=2, size=x_val[0][:,0].shape)
 			x_val[1][:,0] = np.random.normal(loc=12, scale=1, size=x_val[1][:,0].shape)
 
 		mus = []
@@ -279,7 +300,7 @@ def get_ensemble_predictions(X, y, ood=False, config=None):
 		val_rmse = mean_squared_error(y_val, ensemble_mus, squared=False)
 		print('Val RMSE: {:.3f}'.format(val_rmse))
 
-		if config.dataset=='msd':
+		if config.dataset in ['msd', 'alzheimers']:
 			break
 
 	all_mus = np.reshape(all_mus, (-1,1))
