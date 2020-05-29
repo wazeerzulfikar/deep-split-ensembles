@@ -7,6 +7,7 @@ from sklearn.metrics import mean_squared_error
 from sklearn.preprocessing import StandardScaler
 import random
 from scipy.interpolate import  make_interp_spline, BSpline
+import scipy.stats as stats
 
 import os
 import numpy as np
@@ -16,11 +17,18 @@ import matplotlib.pyplot as plt
 
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm
+import matplotlib
+# font = {'size'   : 18}
+
+# matplotlib.rc('font', **font)
 import seaborn as sns
+# sns.set_context("paper", rc={"font.size":18,"axes.titlesize":18,"axes.labelsize":18})   
 
 
 import models
 import combined_uncertainty
+import load_dataset
+import utils_compare
 
 tfd = tfp.distributions
 
@@ -162,24 +170,68 @@ def plot_calibration(X, y, config):
 		use_samples = total_samples - drop_n 
 		non_defered_rmse_list = non_defered_rmse_list[:-drop_n]
 		plt.plot(range(use_samples+1), non_defered_rmse_list, label='Cluster '+str(i+1))
-		plt.legend(loc='lower left')
-		plt.xlabel('No. of Datapoints Deferred')
+		plt.legend(loc='lower left', fontsize=18)
+		plt.xlabel('No. of Datapoints Deferred', fontsize=18)
 		# plt.ylabel('Root Mean Squared Error')
 		plt.xticks(range(0, use_samples+1, (use_samples)//10))
-		plt.title(config.dataset.capitalize().replace('_',' '))
+		plt.title(config.dataset.capitalize().replace('_',' '), fontsize=18)
 
 		if config.dataset == 'boston':
-			plt.title('Boston housing')
+			plt.title('Boston housing', fontsize=18)
+			plt.ylabel('Root Mean Squared Error', fontsize=18)
 		if config.dataset == 'energy_efficiency':
-			plt.title('Energy')
+			plt.title('Energy', fontsize=18)
+		if config.dataset == 'cement':
+			plt.title('Concrete', fontsize=18)
 
-
-	plt.tight_layout()
-	plt.savefig(config.plot_name, dpi=1200)
+	plt.tight_layout(pad=0.0)
+	plt.savefig(config.plot_name, dpi=300)
 	plt.show()
 
 
+def plot_kl(X, y, config):
+
+	# ensemble_mus, ensemble_sigmas, true_values, ensemble_entropies = get_ensemble_predictions(X, y, ood=0, 
+	# 	config=config, mu)
+	kl_1= []
+	entropy_mode_1 = []
+
+	loc_values = [2, 4, 6, 8, 10, 12]
+	scale_values = [1.5, 1.5, 1, 1, 0.5, 0.5]
+	for mu, sigma in zip(loc_values, scale_values):
+		ensemble_mus, ensemble_sigmas, true_values, ensemble_entropies = get_ensemble_predictions(X, y, ood=100, config=config, ood_loc=mu, ood_scale=sigma)
+
+		hist, bins = np.histogram(ensemble_entropies[...,0], bins = 30)
+		kl_1.append(tfd.Normal(loc=0,scale=1).kl_divergence(tfd.Normal(loc=mu,scale=sigma)))
+		entropy_mode_1.append(np.mean(bins[np.argmax(hist):np.argmax(hist)+2]))
+
+		# x = np.linspace(mu - 3*sigma, mu + 3*sigma, 100)
+		# plt.plot(x, stats.norm.pdf(x, mu, sigma), label='N({},{})'.format(mu, sigma**2))
+
+
+	kl_sorted_ind_1 = np.argsort(kl_1)
+	kl_1 = np.array(kl_1)[kl_sorted_ind_1]
+	entropy_mode_1 = np.array(entropy_mode_1)[kl_sorted_ind_1]
+
+	plt.scatter(entropy_mode_1, kl_1)
+	plt.plot(entropy_mode_1, kl_1)
+	plt.xlabel('Mode of Entropy KDE')
+	plt.ylabel('KL(In || Out)')
+	# plt.legend()
+
+	plt.savefig(config.plot_name)
+	plt.show()
+
+
+
+
 def plot_ood(X, y, config):
+
+	ensemble_entropies = np.concatenate(np.load('entropy_plots/deep_ensemble/{}_val_entropy.npy'.format(config.dataset),
+		allow_pickle=True))
+	ensemble_entropies = np.squeeze(ensemble_entropies)
+	plot_ood_helper(ensemble_entropies, os.path.join(config.plot_name,'de.png'), config, deep_ensemble=True)
+
 	ensemble_mus, ensemble_sigmas, true_values, ensemble_entropies = get_ensemble_predictions(X, y, ood=0, config=config)
 	
 	plot_ood_helper(ensemble_entropies, os.path.join(config.plot_name,'in.png'), config)
@@ -196,16 +248,21 @@ def plot_ood(X, y, config):
 	
 	plot_ood_helper(ensemble_entropies, os.path.join(config.plot_name,'out_3.png'), config)
 
-def plot_ood_helper(ensemble_entropies, plot_name, config):
-	for i in range(config.n_feature_sets):
-		print('feature set {}'.format(i))
+def plot_ood_helper(ensemble_entropies, plot_name, config, deep_ensemble=False):
+	if deep_ensemble:
+		b = sns.distplot(ensemble_entropies, hist = False, kde = True,
+                 kde_kws = {'linewidth': 3})
+		b.set_ylabel('Density', fontsize=18)
+	else:
+		for i in range(config.n_feature_sets):
+			print('feature set {}'.format(i))
 
-		sns.distplot(ensemble_entropies[...,i], hist = False, kde = True,
-                 kde_kws = {'linewidth': 3},
-                 label = 'Cluster '+str(i+1))
-		# plt.hist(ensemble_entropies[i], label='Cluster '+str(i), bins=150)
+			b = sns.distplot(ensemble_entropies[...,i], hist = False, kde = True,
+	                 kde_kws = {'linewidth': 3},
+	                 label = 'Cluster '+str(i+1))
+			# plt.hist(ensemble_entropies[i], label='Cluster '+str(i), bins=150)
 
-		plt.legend(loc='upper right')
+			b.legend(loc='upper right', fontsize=18)
 
 	plt.xlim(0,6)
 
@@ -221,11 +278,14 @@ def plot_ood_helper(ensemble_entropies, plot_name, config):
 	if config.dataset == 'cement':
 		plt.ylim(0,7)
 
-	plt.xlabel('Entropy Values')
-	plt.ylabel('Density')
-	plt.savefig(plot_name)
+	b.tick_params(labelsize=18)
+	b.set_xlabel('Entropy (nats)', fontsize=18)
+
+	plt.tight_layout(pad=0)
+	plt.savefig(plot_name, dpi=300)
 	# plt.show()
 	plt.clf()
+	plt.close()
 
 
 def standard_scale(x_train, x_test):
@@ -235,7 +295,7 @@ def standard_scale(x_train, x_test):
 	x_test = scalar.transform(x_test)
 	return x_train, x_test
 
-def get_ensemble_predictions(X, y, ood=False, config=None):
+def get_ensemble_predictions(X, y, ood=False, config=None, ood_loc=0, ood_scale=1):
 	kf = KFold(n_splits=config.n_folds, shuffle=True, random_state=42)
 	fold = 1
 	all_mus, all_sigmas, true_values, all_entropies = [], [], [], []
@@ -247,9 +307,20 @@ def get_ensemble_predictions(X, y, ood=False, config=None):
 		x_train = [i[train_index] for i in X]
 		x_val = [i[test_index] for i in X]
 
+		if config.dataset in ['alzheimers_test']:
+			alzheimers_test_data = load_dataset._alzheimers_test(config)
+			x_val = [np.array(alzheimers_test_data['{}'.format(i)]) for i in range(n_feature_sets)]
+			y_val = np.array(alzheimers_test_data['y'])
+			print('Alzheimers Testing..')
+			[print('Shape of feature set {} {}'.format(e, np.array(i).shape)) for e,i in enumerate(x_val)]
 
-		for i in range(n_feature_sets):
-			x_train[i], x_val[i] = standard_scale(x_train[i], x_val[i])
+		if config.dataset in ['alzheimers', 'alzheimers_test']:
+			assert x_train[-1].shape[-1] == 6373, 'not compare'
+			x_train[-1], x_val[-1] = utils_compare.normalize_compare_features(x_train[-1], x_val[-1])
+
+		else:
+			for i in range(n_feature_sets):
+				x_train[i], x_val[i] = standard_scale(x_train[i], x_val[i])
 
 		if ood == 1:
 			x_val[0][:,0] = np.random.normal(loc=6, scale=2, size=x_val[0][:,0].shape)
@@ -258,6 +329,9 @@ def get_ensemble_predictions(X, y, ood=False, config=None):
 		if ood == 3:
 			x_val[0][:,0] = np.random.normal(loc=6, scale=2, size=x_val[0][:,0].shape)
 			x_val[1][:,0] = np.random.normal(loc=12, scale=1, size=x_val[1][:,0].shape)
+		if ood == 100:
+			x_val[2][:,0] = np.random.normal(loc=ood_loc, scale=ood_scale, size=x_val[2][:,0].shape)
+
 
 		mus = []
 		featurewise_entropies = [[] for i in range(n_feature_sets)]
@@ -300,7 +374,7 @@ def get_ensemble_predictions(X, y, ood=False, config=None):
 		val_rmse = mean_squared_error(y_val, ensemble_mus, squared=False)
 		print('Val RMSE: {:.3f}'.format(val_rmse))
 
-		if config.dataset in ['msd', 'alzheimers']:
+		if config.dataset in ['msd', 'alzheimers', 'alzheimers_test']:
 			break
 
 	all_mus = np.reshape(all_mus, (-1,1))
