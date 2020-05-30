@@ -26,17 +26,24 @@ import seaborn as sns
 
 
 import models
+import evaluator
 import combined_uncertainty
 import load_dataset
 import utils_compare
 
 tfd = tfp.distributions
 
+class EasyDict(dict):
+    def __init__(self, *args, **kwargs): super().__init__(*args, **kwargs)
+    def __getattr__(self, name): return self[name]
+    def __setattr__(self, name, value): self[name] = value
+    def __delattr__(self, name): del self[name] 
+
 def plot_toy_regression(config):
 	config.units = 100
 	fold = 0
 	config.n_models = 5
-	config.epochs = 6000
+	config.epochs = 100
 	config.lr = 0.1
 	config.verbose = 1
 	config.batch_size = 8
@@ -72,39 +79,51 @@ def plot_toy_regression(config):
 
 		x = [x1, x2]
 		y = np.power(x1, 3) + e1
-		y = np.power(x1, 3) + e1
-		y_1d = (np.power(x1, 3) + e1) * (np.power(x2, 3) + e2)
+		y = (np.power(x1, 3) + e1) * (np.power(x2, 3) + e2)
+		x_1d = np.expand_dims(x_1d, axis=-1)
+		y_1d = (np.power(x_1d, 3) + e1) 
 		y_1d = np.squeeze(y_1d)	
 
 	y = np.squeeze(y)
 
-	config.n_feature_sets = len(x)
-	config.feature_split_lengths = [i.shape[1] for i in x]
+	if config.build_model == 'gaussian':
+		x = np.squeeze(x)
+		x = np.transpose(x)
+		y = np.expand_dims(y, axis=-1)
+		print(x.shape)
+		print(y.shape)
+		for model_id in range(config.n_models):
+			evaluator.train_a_fold(0, model_id, config, x, y, x, y)
+
+	else:
+
+		config.n_feature_sets = len(x)
+		config.feature_split_lengths = [i.shape[1] for i in x]
 
 
-	# model, _ = combined_uncertainty.train_a_model(fold, 0, x, y, x, y, config)
-	combined_uncertainty.train_deep_ensemble(x, y, x, y, fold, config, train=True)
+		# model, _ = combined_uncertainty.train_a_model(fold, 0, x, y, x, y, config)
+		combined_uncertainty.train_deep_ensemble(x, y, x, y, fold, config, train=True)
 
-	mus, featurewise_sigmas = [], [[] for i in range(config.n_feature_sets)]
-	for model_id in range(config.n_models):
-		print(model_id)
-		model, _ = models.build_model(config)
-		model.load_weights(os.path.join(config.model_dir, 'fold_{}_nll_{}.h5'.format(fold, model_id)))
+		mus, featurewise_sigmas = [], [[] for i in range(config.n_feature_sets)]
+		for model_id in range(config.n_models):
+			print(model_id)
+			model, _ = models.build_model(config)
+			model.load_weights(os.path.join(config.model_dir, 'fold_{}_nll_{}.h5'.format(fold, model_id)))
 
-		pred = model([x_1d, x_1d])
-		mus.append(pred.mean().numpy()[:,0])
+			pred = model([x_1d, x_1d])
+			mus.append(pred.mean().numpy()[:,0])
+			for i in range(config.n_feature_sets):
+				featurewise_sigmas[i].append(pred.stddev().numpy()[:, i:i+1])
+
+		ensemble_mus = np.mean(mus, axis=0).reshape(-1,1)
+		ensemble_sigmas = []
+
 		for i in range(config.n_feature_sets):
-			featurewise_sigmas[i].append(pred.stddev().numpy()[:, i:i+1])
+			ensemble_sigma = np.sqrt(np.mean(np.square(featurewise_sigmas[i]) + np.square(ensemble_mus), axis=0).reshape(-1,1) - np.square(ensemble_mus))
+			ensemble_sigmas.append(ensemble_sigma)
 
-	ensemble_mus = np.mean(mus, axis=0).reshape(-1,1)
-	ensemble_sigmas = []
-
-	for i in range(config.n_feature_sets):
-		ensemble_sigma = np.sqrt(np.mean(np.square(featurewise_sigmas[i]) + np.square(ensemble_mus), axis=0).reshape(-1,1) - np.square(ensemble_mus))
-		ensemble_sigmas.append(ensemble_sigma)
-
-	ensemble_mus = np.squeeze(ensemble_mus, axis=-1)
-	ensemble_sigmas = np.squeeze(ensemble_sigmas, axis=-1)
+		ensemble_mus = np.squeeze(ensemble_mus, axis=-1)
+		ensemble_sigmas = np.squeeze(ensemble_sigmas, axis=-1)
 	if toy == '3d':
 		# 3D
 		print(ensemble_sigmas)
@@ -145,18 +164,38 @@ def plot_toy_regression(config):
 		ax.set_zlim(-50000, 400000)
 
 	if toy == '2d':
-		print(ensemble_sigmas)
+		# print(ensemble_sigmas)
 
 	# 2D
 		plt.plot(x_1d, y_1d)
 		plt.scatter(x1, y, s=[6]*len(x1), c='r', zorder=1)
-		plt.fill_between(x_1d, np.squeeze(ensemble_mus-3*ensemble_sigmas[0]), 
-			np.squeeze(ensemble_mus+3*ensemble_sigmas[0]), color='grey', alpha=0.5)
+		# plt.fill_between(x_1d, np.squeeze(ensemble_mus-3*ensemble_sigmas[0]), 
+		# 	np.squeeze(ensemble_mus+3*ensemble_sigmas[0]), color='grey', alpha=0.5)
 	plt.show()
 
 def plot_calibration(X, y, config):
+
+	config_gaussian = EasyDict(config)
+	config_gaussian.build_model = 'gaussian'
+	config_gaussian.mod_split = 'none'
+	config_gaussian.model_dir = 'deep_ensemble_models/{}'.format(config.dataset)
+	data_gaussian = load_dataset.load_dataset(config_gaussian)
+	X_gaussian = [np.array(data_gaussian['0'])]
+	config_gaussian.n_feature_sets = 1
+	config_gaussian.feature_split_lengths = [i.shape[1] for i in X]
+
+	ensemble_mus, ensemble_sigmas, true_values, _ = get_ensemble_predictions(X_gaussian, y, ood=False, config=config_gaussian)
+	defered_rmse_list, non_defered_rmse_list = defer_analysis(true_values, ensemble_mus, ensemble_sigmas[...,0])
+
+	total_samples = ensemble_mus.shape[0]
+	drop_n = int(0.1*ensemble_mus.shape[0])
+
+	use_samples = total_samples - drop_n 
+	non_defered_rmse_list = non_defered_rmse_list[:-drop_n]
+
+	plt.plot(range(use_samples+1), non_defered_rmse_list, label='Unified', color='black')
+
 	ensemble_mus, ensemble_sigmas, true_values, _ = get_ensemble_predictions(X, y, ood=False, config=config)
-	fig = plt.figure()
 	# fig.set_size_inches(30.,18.)
 
 	for i in range(config.n_feature_sets):
@@ -170,7 +209,7 @@ def plot_calibration(X, y, config):
 		use_samples = total_samples - drop_n 
 		non_defered_rmse_list = non_defered_rmse_list[:-drop_n]
 		plt.plot(range(use_samples+1), non_defered_rmse_list, label='Cluster '+str(i+1))
-		plt.legend(loc='lower left', fontsize=18)
+		plt.legend(loc='lower left', fontsize=14)
 		plt.xlabel('No. of Datapoints Deferred', fontsize=18)
 		# plt.ylabel('Root Mean Squared Error')
 		plt.xticks(range(0, use_samples+1, (use_samples)//10))
@@ -193,44 +232,49 @@ def plot_kl(X, y, config):
 
 	# ensemble_mus, ensemble_sigmas, true_values, ensemble_entropies = get_ensemble_predictions(X, y, ood=0, 
 	# 	config=config, mu)
-	kl_1= []
-	entropy_mode_1 = []
+	for cluster_id in range(config.n_feature_sets):
+		kl_1= []
+		entropy_mode_1 = []
 
-	loc_values = [2, 4, 6, 8, 10, 12]
-	scale_values = [1.5, 1.5, 1, 1, 0.5, 0.5]
-	for mu, sigma in zip(loc_values, scale_values):
-		ensemble_mus, ensemble_sigmas, true_values, ensemble_entropies = get_ensemble_predictions(X, y, ood=100, config=config, ood_loc=mu, ood_scale=sigma)
+		loc_values = [2, 4, 6, 8, 10, 12]
+		scale_values = [1.5, 1.5, 1, 1, 0.5, 0.5]
 
-		hist, bins = np.histogram(ensemble_entropies[...,0], bins = 30)
-		kl_1.append(tfd.Normal(loc=0,scale=1).kl_divergence(tfd.Normal(loc=mu,scale=sigma)))
-		entropy_mode_1.append(np.mean(bins[np.argmax(hist):np.argmax(hist)+2]))
+		for mu, sigma in zip(loc_values, scale_values):
+			ensemble_mus, ensemble_sigmas, true_values, ensemble_entropies = get_ensemble_predictions(X, y, ood=100, 
+				config=config, ood_loc=mu, ood_scale=sigma, ood_cluster_id=cluster_id)
 
-		# x = np.linspace(mu - 3*sigma, mu + 3*sigma, 100)
-		# plt.plot(x, stats.norm.pdf(x, mu, sigma), label='N({},{})'.format(mu, sigma**2))
+			hist, bins = np.histogram(ensemble_entropies[..., cluster_id], bins = 30)
+			kl_1.append(tfd.Normal(loc=0,scale=1).kl_divergence(tfd.Normal(loc=mu,scale=sigma)))
+			entropy_mode_1.append(np.mean(bins[np.argmax(hist):np.argmax(hist)+2]))
 
-
-	kl_sorted_ind_1 = np.argsort(kl_1)
-	kl_1 = np.array(kl_1)[kl_sorted_ind_1]
-	entropy_mode_1 = np.array(entropy_mode_1)[kl_sorted_ind_1]
-
-	plt.scatter(entropy_mode_1, kl_1)
-	plt.plot(entropy_mode_1, kl_1)
-	plt.xlabel('Mode of Entropy KDE')
-	plt.ylabel('KL(In || Out)')
-	# plt.legend()
-
-	plt.savefig(config.plot_name)
-	plt.show()
+			# x = np.linspace(mu - 3*sigma, mu + 3*sigma, 100)
+			# plt.plot(x, stats.norm.pdf(x, mu, sigma), label='N({},{})'.format(mu, sigma**2))
 
 
+		kl_sorted_ind_1 = np.argsort(kl_1)
+		kl_1 = np.array(kl_1)[kl_sorted_ind_1]
+		entropy_mode_1 = np.array(entropy_mode_1)[kl_sorted_ind_1]
+
+		np.save(config.plot_name.replace('.png', '_{}'.format(cluster_id)), np.stack((kl_1, entropy_mode_1), axis=-1))
+
+		plt.scatter(entropy_mode_1, kl_1)
+		plt.plot(entropy_mode_1, kl_1)
+		plt.xlabel('Mode of KDE of Entropy')
+		plt.ylabel('KL (In || Out)')
+		# plt.legend()
+
+		plt.savefig(config.plot_name.replace('.png', '_{}.png'.format(cluster_id)))
+		# plt.show()
+		plt.clf()
+		plt.close()
 
 
 def plot_ood(X, y, config):
 
-	ensemble_entropies = np.concatenate(np.load('entropy_plots/deep_ensemble/{}_val_entropy.npy'.format(config.dataset),
-		allow_pickle=True))
-	ensemble_entropies = np.squeeze(ensemble_entropies)
-	plot_ood_helper(ensemble_entropies, os.path.join(config.plot_name,'de.png'), config, deep_ensemble=True)
+	# ensemble_entropies = np.concatenate(np.load('entropy_plots/deep_ensemble/{}_val_entropy.npy'.format(config.dataset),
+	# 	allow_pickle=True))
+	# ensemble_entropies = np.squeeze(ensemble_entropies)
+	# plot_ood_helper(ensemble_entropies, os.path.join(config.plot_name,'de.png'), config, deep_ensemble=True)
 
 	ensemble_mus, ensemble_sigmas, true_values, ensemble_entropies = get_ensemble_predictions(X, y, ood=0, config=config)
 	
@@ -278,6 +322,9 @@ def plot_ood_helper(ensemble_entropies, plot_name, config, deep_ensemble=False):
 	if config.dataset == 'cement':
 		plt.ylim(0,7)
 
+	if config.dataset == 'power_plant':
+		plt.ylim(0,5)
+
 	b.tick_params(labelsize=18)
 	b.set_xlabel('Entropy (nats)', fontsize=18)
 
@@ -287,6 +334,15 @@ def plot_ood_helper(ensemble_entropies, plot_name, config, deep_ensemble=False):
 	plt.clf()
 	plt.close()
 
+def show(X, y, config):
+
+	n_feature_sets = len(X)
+	model, loss= models.build_model(config)
+	model.compile(loss=loss, optimizer='adam')
+	print(np.concatenate(X, axis=-1).shape)
+	model.build((None,np.concatenate(X, axis=-1).shape[1]))
+	print(model.summary())
+
 
 def standard_scale(x_train, x_test):
 	scalar = StandardScaler()
@@ -295,10 +351,10 @@ def standard_scale(x_train, x_test):
 	x_test = scalar.transform(x_test)
 	return x_train, x_test
 
-def get_ensemble_predictions(X, y, ood=False, config=None, ood_loc=0, ood_scale=1):
+def get_ensemble_predictions(X, y, ood=False, config=None, ood_loc=0, ood_scale=1, ood_cluster_id=0):
 	kf = KFold(n_splits=config.n_folds, shuffle=True, random_state=42)
 	fold = 1
-	all_mus, all_sigmas, true_values, all_entropies = [], [], [], []
+	all_mus, all_sigmas, true_values, all_entropies, all_rmses = [], [], [], [], []
 	n_feature_sets = len(X)
 	for train_index, test_index in kf.split(y):
 		# if fold == fold_to_use:
@@ -330,26 +386,33 @@ def get_ensemble_predictions(X, y, ood=False, config=None, ood_loc=0, ood_scale=
 			x_val[0][:,0] = np.random.normal(loc=6, scale=2, size=x_val[0][:,0].shape)
 			x_val[1][:,0] = np.random.normal(loc=12, scale=1, size=x_val[1][:,0].shape)
 		if ood == 100:
-			x_val[2][:,0] = np.random.normal(loc=ood_loc, scale=ood_scale, size=x_val[2][:,0].shape)
-
+			x_val[ood_cluster_id][:,0] = np.random.normal(loc=ood_loc, scale=ood_scale, size=x_val[ood_cluster_id][:,0].shape)
 
 		mus = []
 		featurewise_entropies = [[] for i in range(n_feature_sets)]
 		featurewise_sigmas = [[] for i in range(n_feature_sets)]
 		for model_id in range(config.n_models):
-			model, _ = models.build_model(config)
-			model.load_weights(os.path.join(config.model_dir, 'fold_{}_nll_{}.h5'.format(fold, model_id)))
+			if config.build_model=='gaussian':
+				model, _ = models.build_model(config)
+				model.build((None,x_train[0].shape[1]))
+				model.load_weights(os.path.join(config.model_dir, 'fold_{}_model_{}.h5'.format(fold, model_id+1)))
+				preds = model(x_val[0])
+			else:
+
+				model, _ = models.build_model(config)
+				model.load_weights(os.path.join(config.model_dir, 'fold_{}_nll_{}.h5'.format(fold, model_id)))
+
+				preds = model(x_val)
 
 			y_val = y_val.reshape(-1,1)
-			preds = model(x_val)
 
-			if config.build_model == 'combined_multivariate':
+			if config.build_model in ['combined_multivariate', 'gaussian']:
 				mus.append(preds.mean().numpy()[:,0])
 			elif config.build_model == 'combined_pog':
 				mus.append(preds[0].mean().numpy())
 
 			for i in range(n_feature_sets):
-				if config.build_model == 'combined_multivariate':
+				if config.build_model in ['combined_multivariate', 'gaussian']:
 					featurewise_sigmas[i].append(preds.stddev().numpy()[:,i:i+1])
 					featurewise_entropies[i].append(preds.entropy().numpy())
 
@@ -372,6 +435,7 @@ def get_ensemble_predictions(X, y, ood=False, config=None, ood_loc=0, ood_scale=
 			true_values.append(y_val[i])
 		fold+=1
 		val_rmse = mean_squared_error(y_val, ensemble_mus, squared=False)
+		all_rmses.append(val_rmse)
 		print('Val RMSE: {:.3f}'.format(val_rmse))
 
 		if config.dataset in ['msd', 'alzheimers', 'alzheimers_test']:
@@ -381,6 +445,8 @@ def get_ensemble_predictions(X, y, ood=False, config=None, ood_loc=0, ood_scale=
 	all_sigmas = np.reshape(all_sigmas, (-1, n_feature_sets))
 	true_values = np.reshape(true_values, (-1, 1))
 	all_entropies = np.reshape(all_entropies, (-1, n_feature_sets))
+
+	print('Total val rmse', np.mean(all_rmses))
 
 	return all_mus, all_sigmas, true_values, all_entropies
 
