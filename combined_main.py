@@ -8,27 +8,21 @@ from evaluator import evaluate
 import combined_uncertainty
 import load_dataset
 import experiments
+import utils
 
-# Config to choose the hyperparameters for everything
-class EasyDict(dict):
-    def __init__(self, *args, **kwargs): super().__init__(*args, **kwargs)
-    def __getattr__(self, name): return self[name]
-    def __setattr__(self, name, value): self[name] = value
-    def __delattr__(self, name): del self[name] 
-
-config = EasyDict({
-	'model_dir' : 'deepmind-1000/protein-1000',
+config = utils.EasyDict({
+	'model_dir' : 'deepmind-1000/boston-1000',
 	# 'model_dir' : 'deep_ensemble_models/boston',
 	# 'model_dir' : 'alzheimers/alzheimers_models/alzheimers-5000-e-3-bs-16',
 	# 'model_dir' : 'human/power_plant-1000',
 	# 'model_dir': 'toys/toy2d',
 
 	'regression_datasets_dir': 'datasets',
-	'dataset': 'protein',
+	'dataset': 'boston',
 
 	# 'action': 'train',
-	# 'action': 'evaluate',
-	'action': 'plot_calibration',
+	'action': 'evaluate',
+	# 'action': 'plot_calibration',
 	# 'action': 'plot_ood',
 	# 'action': 'plot_kl',
 	# 'action': 'show',

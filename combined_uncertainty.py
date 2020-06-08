@@ -13,7 +13,7 @@ np.random.seed(0)
 import matplotlib.pyplot as plt
 
 import models
-import utils_compare
+from alzheimers import utils as alzheimers_utils
 import load_dataset
 
 tfd = tfp.distributions
@@ -49,7 +49,7 @@ def run_all_folds(X, y, train, config):
 
 		if config.dataset in ['alzheimers', 'alzheimers_test']:
 			assert x_train[-1].shape[-1] == 6373, 'not compare'
-			x_train[-1], x_val[-1] = utils_compare.normalize_compare_features(x_train[-1], x_val[-1])
+			x_train[-1], x_val[-1] = alzheimers_utils.normalize_compare_features(x_train[-1], x_val[-1])
 
 		else:
 			for i in range(n_feature_sets):

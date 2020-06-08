@@ -537,8 +537,7 @@ class EasyDict(dict):
 
 def _alzheimers(config):
     # sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    sys.path.append('..')
-    import dataset as alzheimers_dataset
+    import alzheimers.dataset as alzheimers_dataset
 
     alzheimers_config = EasyDict({
         # 'task': 'classification',
@@ -561,8 +560,7 @@ def _alzheimers(config):
     return data
 
 def _alzheimers_test(config):
-    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    import dataset as alzheimers_dataset
+    import alzheimers.dataset as alzheimers_dataset
 
     test_data_name = config.dataset.split('_')[-1]
 

@@ -8,8 +8,6 @@ from sklearn.preprocessing import StandardScaler
 import random
 from scipy.interpolate import  make_interp_spline, BSpline
 import scipy.stats as stats
-from adjustText import adjust_text
-
 
 import os
 import numpy as np
@@ -20,18 +18,15 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm
 import matplotlib
-# font = {'size'   : 18}
 
-# matplotlib.rc('font', **font)
 import seaborn as sns
-# sns.set_context("paper", rc={"font.size":18,"axes.titlesize":18,"axes.labelsize":18})   
-
 
 import models
 import evaluator
 import combined_uncertainty
 import load_dataset
-import utils_compare
+from alzheimers import utils as alzheimers_utils
+
 
 tfd = tfp.distributions
 
@@ -215,26 +210,6 @@ def plot_toy_regression(config):
 
 def plot_calibration(X, y, config):
 
-	# config_gaussian = EasyDict(config)
-	# config_gaussian.build_model = 'gaussian'
-	# config_gaussian.mod_split = 'none'
-	# config_gaussian.model_dir = 'deep_ensemble_models/{}'.format(config.dataset)
-	# data_gaussian = load_dataset.load_dataset(config_gaussian)
-	# X_gaussian = [np.array(data_gaussian['0'])]
-	# config_gaussian.n_feature_sets = 1
-	# config_gaussian.feature_split_lengths = [i.shape[1] for i in X]
-
-	# ensemble_mus, ensemble_sigmas, true_values, _ = get_ensemble_predictions(X_gaussian, y, ood=False, config=config_gaussian)
-	# defered_rmse_list, non_defered_rmse_list = defer_analysis(true_values, ensemble_mus, ensemble_sigmas[...,0])
-
-	# total_samples = ensemble_mus.shape[0]
-	# drop_n = int(0.1*ensemble_mus.shape[0])
-
-	# use_samples = total_samples - drop_n 
-	# non_defered_rmse_list = non_defered_rmse_list[:-drop_n]
-
-	# plt.plot(range(use_samples+1), non_defered_rmse_list, label='Unified', color='black')
-
 	ensemble_mus, ensemble_sigmas, true_values, _ = get_ensemble_predictions(X, y, ood=False, config=config)
 
 	for i in range(config.n_feature_sets):
@@ -275,7 +250,6 @@ def plot_kl(X, y, config):
 
 	# ensemble_mus, ensemble_sigmas, true_values, ensemble_entropies = get_ensemble_predictions(X, y, ood=0, 
 	# 	config=config, mu)
-	annotations = []
 
 	fig, ax = plt.subplots()
 
@@ -300,6 +274,8 @@ def plot_kl(X, y, config):
 			# x = np.linspace(mu - 3*sigma, mu + 3*sigma, 100)
 			# plt.plot(x, stats.norm.pdf(x, mu, sigma), label='N({},{})'.format(mu, sigma**2))
 
+		# np.save(config.plot_name.replace('.png', '_{}'.format(cluster_id)), np.stack((kl_1, entropy_mode_1), axis=-1))
+
 		plot_folder = config.plot_name.split('/')[0]
 		data = np.load(os.path.join(plot_folder, 'kl_plots_values', '{}_{}.npy'.format(config.dataset, cluster_id)))
 		kl_1, entropy_mode_1 = data[...,0], data[...,1]
@@ -308,8 +284,6 @@ def plot_kl(X, y, config):
 		kl_1 = np.array(kl_1)[kl_sorted_ind_1]
 		entropy_mode_1 = np.array(entropy_mode_1)[kl_sorted_ind_1]
 		ood_params = np.array(ood_params)[kl_sorted_ind_1]
-
-		# np.save(config.plot_name.replace('.png', '_{}'.format(cluster_id)), np.stack((kl_1, entropy_mode_1), axis=-1))
 
 		plt.scatter(kl_1, entropy_mode_1, s=96)
 		plt.plot(kl_1, entropy_mode_1, label='Cluster '+str(cluster_id+1), linewidth=3)
@@ -330,14 +304,6 @@ def plot_kl(X, y, config):
 
 		plt.xlabel(r'$D_{KL}$ (In Dist. || OOD)', fontsize=26)
 
-		if cluster_id == 10:
-			for i, txt in enumerate(ood_params):
-			    # annotations.append(plt.annotate(txt, (entropy_mode_1[i], kl_1[i])))
-			    # annotations.append(plt.text(entropy_mode_1[i], kl_1[i], txt))
-			    annotations.append(plt.text(0.5, kl_1[i], txt))
-
-	# adjust_text(annotations, only_move={'text':'y'})
-
 	plt.legend(fontsize=16, loc='lower right')
 	ax.tick_params(axis="x", labelsize=24)
 	ax.tick_params(axis="y", labelsize=24)
@@ -346,9 +312,6 @@ def plot_kl(X, y, config):
 		# plt.savefig(config.plot_name.replace('.png', '_{}.png'.format(cluster_id)))
 	plt.tight_layout(pad=0)
 	plt.savefig(config.plot_name, dpi=300)
-	# plt.xticks(fontsize=22)
-	# plt.yticks(fontsize=22)
-	# plt.show()
 	plt.clf()
 	plt.close()
 
@@ -516,10 +479,8 @@ def show(X, y, config):
 	n_feature_sets = len(X)
 	model, loss= models.build_model(config)
 	model.compile(loss=loss, optimizer='adam')
-	# print(np.concatenate(X, axis=-1).shape)
 	model.build((None,np.concatenate(X, axis=-1).shape[1]))
 	print(model.summary())
-	# print(config.dataset, np.array(model.trainable_variables).size)
 
 
 def standard_scale(x_train, x_test):
@@ -528,6 +489,7 @@ def standard_scale(x_train, x_test):
 	x_train = scalar.transform(x_train)
 	x_test = scalar.transform(x_test)
 	return x_train, x_test
+	
 
 def get_ensemble_predictions(X, y, ood=False, config=None, ood_loc=0, ood_scale=1, ood_cluster_id=0,
  alzheimers_test_data=None):
@@ -552,7 +514,7 @@ def get_ensemble_predictions(X, y, ood=False, config=None, ood_loc=0, ood_scale=
 
 		if 'alzheimers' in config.dataset:
 			assert x_train[-1].shape[-1] == 6373, 'not compare'
-			x_train[-1], x_val[-1] = utils_compare.normalize_compare_features(x_train[-1], x_val[-1])
+			x_train[-1], x_val[-1] = alzheimers_utils.normalize_compare_features(x_train[-1], x_val[-1])
 
 		else:
 			for i in range(n_feature_sets):
