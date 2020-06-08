@@ -120,3 +120,9 @@ if config.dataset in ['life']:
 		life_trainer.evaluate(X, y, config)
 elif config.dataset in ['life_test']:
 	life_trainer.evaluate(X, y, config)
+
+#train
+# python extras/life_trainer.py train --datasets_dir datasets --dataset life --model_dir life_hc --n_models 1 --epochs 1000 --build_model point --units_type absolute --mixture_approximation none
+
+# evaluate n the missing features
+# python extras/life_trainer.py evaluate --datasets_dir datasets --dataset life_test --model_dir life_hc --n_models 1  --build_model point --units_type absolute --mixture_approximation none
