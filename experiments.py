@@ -1,30 +1,18 @@
-import tensorflow as tf
-import tensorflow_probability as tfp
-from tensorflow.keras.layers import *
-
-from sklearn.model_selection import KFold
-from sklearn.metrics import mean_squared_error
-from sklearn.preprocessing import StandardScaler
-import random
-from scipy.interpolate import  make_interp_spline, BSpline
-import scipy.stats as stats
-
 import os
 import numpy as np
 np.random.seed(0)
 
+from sklearn.model_selection import KFold
+from sklearn.metrics import mean_squared_error
+import scipy.stats as stats
+import tensorflow_probability as tfp
 import matplotlib.pyplot as plt
-
-from mpl_toolkits.mplot3d import Axes3D
-from matplotlib import cm
-import matplotlib
-
 import seaborn as sns
 
 import models
-import evaluator
 import trainer
 import dataset
+from extras import evaluator
 from alzheimers import utils as alzheimers_utils
 
 tfd = tfp.distributions
@@ -482,14 +470,6 @@ def show(X, y, config):
 	print(model.summary())
 
 
-def standard_scale(x_train, x_test):
-	scalar = StandardScaler()
-	scalar.fit(x_train)
-	x_train = scalar.transform(x_train)
-	x_test = scalar.transform(x_test)
-	return x_train, x_test
-
-
 def get_ensemble_predictions(X, y, ood=False, config=None, ood_loc=0, ood_scale=1, ood_cluster_id=0,
  alzheimers_test_data=None):
 	kf = KFold(n_splits=config.n_folds, shuffle=True, random_state=42)
@@ -517,7 +497,7 @@ def get_ensemble_predictions(X, y, ood=False, config=None, ood_loc=0, ood_scale=
 
 		else:
 			for i in range(n_feature_sets):
-				x_train[i], x_val[i] = standard_scale(x_train[i], x_val[i])
+				x_train[i], x_val[i] = utils.standard_scale(x_train[i], x_val[i])
 
 		if ood == 1:
 			x_val[0][:,2] = np.random.normal(loc=6, scale=2, size=x_val[0][:,0].shape)

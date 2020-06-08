@@ -1,21 +1,18 @@
-import pandas as pd
-from sklearn.datasets import load_boston
-import glob, os, math, time, re, csv
-from decimal import *
+import os
 import numpy as np
-import pandas as pd
-from sklearn.preprocessing import LabelEncoder
-from sklearn.datasets import load_boston
 np.random.seed(0)
 
+import pandas as pd
 import matplotlib.pyplot as plt
+from sklearn.datasets import load_boston
+from sklearn.preprocessing import LabelEncoder
+from sklearn.datasets import load_boston
 from sklearn.cluster import KMeans, AgglomerativeClustering
 from sklearn.preprocessing import scale
-
 from scipy.cluster.hierarchy import linkage, fcluster, dendrogram
 from scipy.spatial.distance import pdist
 
-import sys 
+import alzheimers.dataset as alzheimers_dataset
 
 def random_split(config, features):
     data = np.transpose(features)
@@ -536,9 +533,6 @@ class EasyDict(dict):
     def __delattr__(self, name): del self[name] 
 
 def _alzheimers(config):
-    # sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    import alzheimers.dataset as alzheimers_dataset
-
     alzheimers_config = EasyDict({
         # 'task': 'classification',
         'task': 'regression',
@@ -560,8 +554,6 @@ def _alzheimers(config):
     return data
 
 def _alzheimers_test(config):
-    import alzheimers.dataset as alzheimers_dataset
-
     test_data_name = config.dataset.split('_')[-1]
 
     if test_data_name in ['male', 'female']:

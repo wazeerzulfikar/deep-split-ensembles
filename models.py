@@ -1,8 +1,8 @@
-import math
-import tensorflow as tf
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import *
 import tensorflow_probability as tfp
+import tensorflow as tf
+
 tfd = tfp.distributions
 
 def create_feature_extractor_block(x, units):
@@ -105,7 +105,7 @@ def build_model(config):
 			if config.units_type == 'absolute':
 				units = config.units
 			elif config.units_type == 'prorated':
-				units = math.ceil(config.feature_split_lengths[i] * config.units / sum(config.feature_split_lengths) )
+				units = math.floor(config.feature_split_lengths[i] * config.units / sum(config.feature_split_lengths) )
 			feature_extractors.append(create_feature_extractor_block(inputs[i], units = units))
 
 		stddevs = []

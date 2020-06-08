@@ -1,20 +1,17 @@
-import tensorflow as tf
-import tensorflow_probability as tfp
-from tensorflow.keras.layers import *
-
-from sklearn.model_selection import KFold
-from sklearn.metrics import mean_squared_error
-from sklearn.preprocessing import StandardScaler
-
 import os
 import numpy as np
 np.random.seed(0)
 
 import matplotlib.pyplot as plt
+import tensorflow as tf
+import tensorflow_probability as tfp
+from sklearn.model_selection import KFold
+from sklearn.metrics import mean_squared_error
 
 import models
-from alzheimers import utils as alzheimers_utils
 import dataset
+import utils
+from alzheimers import utils as alzheimers_utils
 
 tfd = tfp.distributions
 
@@ -53,14 +50,12 @@ def run_all_folds(X, y, train, config):
 
 		else:
 			for i in range(n_feature_sets):
-				x_train[i], x_val[i] = standard_scale(x_train[i], x_val[i])
+				x_train[i], x_val[i] = utils.standard_scale(x_train[i], x_val[i])
 
 		rmse, nll = train_deep_ensemble(x_train, y_train, x_val, y_val, fold, config, train=train, verbose=config.verbose)
 		all_rmses.append(rmse)
 		all_nlls.append(nll)
 		fold+=1
-		# if fold == 3:
-		# 	exit()
 		print('='*20)
 
 		if config.dataset in ['msd', 'alzheimers', 'alzheimers_test']:
@@ -72,13 +67,6 @@ def run_all_folds(X, y, train, config):
 	 for i in range(n_feature_sets)]
 	print(['{:.3f} {:.3f}'.format(np.mean(all_nlls, axis=0)[i], np.std(all_nlls, axis=0)[i]) 
 		for i in range(n_feature_sets)])
-
-def standard_scale(x_train, x_test):
-	scalar = StandardScaler()
-	scalar.fit(x_train)
-	x_train = scalar.transform(x_train)
-	x_test = scalar.transform(x_test)
-	return x_train, x_test
 
 def train_a_model(
 	model_id, fold,
@@ -95,13 +83,6 @@ def train_a_model(
 	checkpointer = tf.keras.callbacks.ModelCheckpoint(
 			checkpoint_filepath, monitor='val_loss', verbose=0, save_best_only=True,
 			save_weights_only=True, mode='auto', save_freq='epoch')
-
-
-	# model.compile(optimizer=tf.optimizers.Adam(learning_rate=config.lr),
-	# 			  loss=[negloglik]*len(x_train))
-
-	
-				  # metrics=[mse_wrapped, mse_wrapped, mse_wrapped])
 
 	if config.build_model == 'combined_pog':
 		model.compile(optimizer=tf.optimizers.Adam(learning_rate=config.lr),
@@ -182,8 +163,8 @@ def train_deep_ensemble(x_train, y_train, x_val, y_val, fold, config, train=Fals
 				print('Pred: {:.3f}'.format(mus[model_id][i][0]), '\tTrue: {:.3f}'.format(y_val[i][0]), stddev_print_string)
 		print('-'*20)
 
-	# mus - (5, 26)
-	# std - (3, 5, 26)
+	# shape of mus - (5, 26)
+	# shape of std - (3, 5, 26)
 
 	if config.mixture_approximation == 'gaussian':
 		ensemble_mus = np.mean(mus, axis=0).reshape(-1,1)
@@ -232,7 +213,6 @@ def train_deep_ensemble(x_train, y_train, x_val, y_val, fold, config, train=Fals
 		ensemble_mus = np.expand_dims(ensemble_mus, axis=-1)
 		ensemble_sigmas = np.expand_dims(ensemble_sigmas, axis=-1)
 
-	#ensemble_normal 3, 26
 	ensemble_val_rmse = mean_squared_error(y_val, ensemble_mus, squared=False)
 
 	print('Deep Ensemble val rmse {:.3f}'.format(ensemble_val_rmse))

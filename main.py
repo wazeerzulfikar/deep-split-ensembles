@@ -1,10 +1,6 @@
-import os
-from pathlib import Path
 import numpy as np
-import time
 np.random.seed(0)
 
-from evaluator import evaluate
 import trainer
 import dataset
 import experiments
@@ -66,8 +62,7 @@ def main(config):
 	print('Number of feature sets ', n_feature_sets)
 	[print('Shape of feature set {} {}'.format(e, np.array(i).shape)) for e,i in enumerate(X)]
 
-	model_dir = Path(config.model_dir)
-	model_dir.mkdir(parents=True, exist_ok=True)
+	utils.make_model_dir(config.model_dir)
 
 	if config.dataset in ['boston', 'cement', 'power_plant', 'wine', 'yacht', 'kin8nm', 'energy_efficiency', 'naval']:
 		config.units = 50
@@ -123,16 +118,11 @@ def main(config):
 run_all = False
 if __name__ == '__main__':
 	if run_all:
-		time_taken = {}
 		datasets = ['boston', 'cement', 'power_plant', 'wine', 'yacht', 'kin8nm', 'energy_efficiency', 'protein']
 		for d in datasets:
-			start = time.time()
 
 			config.dataset = d
 			config.model_dir = 'deepmind-1000/{}-1000'.format(d)
 			main(config)
-			time_taken[d] = time.time() - start
-		for t in time_taken:
-			print(t, time_taken[t])
 	else:
 		main(config)
