@@ -17,12 +17,6 @@ from alzheimers import utils as alzheimers_utils
 
 tfd = tfp.distributions
 
-class EasyDict(dict):
-    def __init__(self, *args, **kwargs): super().__init__(*args, **kwargs)
-    def __getattr__(self, name): return self[name]
-    def __setattr__(self, name, value): self[name] = value
-    def __delattr__(self, name): del self[name] 
-
 def plot_toy_regression(config):
 	config.units = 100
 	fold = 0
@@ -53,9 +47,6 @@ def plot_toy_regression(config):
 		x1x1, x2x2 = np.meshgrid(range(graph_limits[0],graph_limits[1]+1), range(graph_limits[0],graph_limits[1]+1))
 		y_2d = np.power(x1x1, power) * np.power(x2x2, power)
 		y = (np.power(x1, power) + e1) * (np.power(x2, power) + e2)
-
-		# y_1d_1, x_1d_1 = [] 
-		# y_1d = np.power(x_1d, 3) ** 2
 
 		y_2d = np.squeeze(y_2d)
 
@@ -131,13 +122,9 @@ def plot_toy_regression(config):
 
 		fig = plt.figure()
 		ax = fig.add_subplot(111, projection='3d')
-		# ax.xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
-		# ax.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
-		# ax.zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
 		ax.set_zticks([], [])
 
 		ax.plot_wireframe(x1x1, x2x2, y_2d, rstride=1, cstride=1, alpha=0.3)
-		# ax.plot_surface(x1x1, x2x2, y_, rstride=1, cstride=1, alpha=0.5)
 		ax.scatter(x1, x2, y, s=16, c='red', zorder=2, zdir='z', depthshade=False)
 
 		ax.scatter(x1, graph_limits[1], y, s=8, c='black', zorder=2, zdir='z', depthshade=False)
@@ -157,11 +144,6 @@ def plot_toy_regression(config):
 		ax.add_collection3d(plt.fill_between(x_1d, ensemble_mus-3*ensemble_sigmas[0], 
 			ensemble_mus+3*ensemble_sigmas[0], color='grey', alpha=0.3), zs=graph_limits[1], zdir='y')
 
-		# ax.tick_params(axis="x", labelsize=24)
-		# ax.tick_params(axis="y", labelsize=24)
-		# ax.tick_params(axis="z", labelsize=24)
-		# ax.set_zticks([i*1000 for i in range(-15, 16, 5)], labels=['-15, -10, -5, 0, 5, 10, 15'])
-		# zlabels = ['{:,.2f}'.format(x) + 'K' for x in ax.get_zticks()/1000]
 		ax.set_xlabel(r'$x_1$', fontsize=26)
 		ax.set_ylabel(r'$x_2$', fontsize=26)
 		ax.set_zlabel(r'$y$', fontsize=26)
@@ -170,30 +152,22 @@ def plot_toy_regression(config):
 		elif power == 4:
 			ax.set_title(r'$y=(x_1^4+\epsilon_1)(x_2^4+\epsilon_2)$', fontsize=26)
 
-		# ax.set_title('Y = (X1^3)*(X2^3)')
 		ax.set_xlim(graph_limits[0], graph_limits[1])
-		# ax.set_ylabel('Y')
 		ax.set_ylim(graph_limits[0], graph_limits[1])
-		# ax.set_zlabel('Z')
-		# ax.set_zlim(-200, 600)
 		if power == 4:
 			ax.set_zlim(-50000, 400000)
 
 		ax.grid(False)
 
 	if toy == '2d':
-		# print(ensemble_sigmas)
-
-	# 2D
 		plt.plot(x_1d, y_1d)
 		plt.scatter(x1, y, s=[6]*len(x1), c='r', zorder=1)
-		# plt.fill_between(x_1d, np.squeeze(ensemble_mus-3*ensemble_sigmas[0]), 
-		# 	np.squeeze(ensemble_mus+3*ensemble_sigmas[0]), color='grey', alpha=0.5)
+		plt.fill_between(x_1d, np.squeeze(ensemble_mus-3*ensemble_sigmas[0]), 
+			np.squeeze(ensemble_mus+3*ensemble_sigmas[0]), color='grey', alpha=0.5)
 
 
 	plt.tight_layout(pad=0)
 	plt.savefig('toy_plots/{}.png'.format(config.model_dir.split('/')[-1]), dpi=300)
-	# plt.show()
 
 def plot_calibration(X, y, config):
 
@@ -201,7 +175,7 @@ def plot_calibration(X, y, config):
 
 	for i in range(config.n_feature_sets):
 		print('feature set {}'.format(i))
-		defered_rmse_list, non_defered_rmse_list = defer_analysis(true_values, ensemble_mus, ensemble_sigmas[...,i])
+		defered_rmse_list, non_defered_rmse_list = utils.defer_analysis(true_values, ensemble_mus, ensemble_sigmas[...,i])
 
 		total_samples = ensemble_mus.shape[0]
 		
@@ -212,7 +186,6 @@ def plot_calibration(X, y, config):
 		plt.plot(range(use_samples+1), non_defered_rmse_list, label='Cluster '+str(i+1), linewidth=3)
 		plt.legend(loc='lower left', fontsize=14)
 		plt.xlabel('No. of Datapoints Deferred', fontsize=26)
-		# plt.ylabel('Root Mean Squared Error')
 		plt.xticks(range(0, use_samples+1, (use_samples)//10))
 		plt.title(config.dataset.capitalize().replace('_',' ') + ' (hier. clust.)', fontsize=26)
 
@@ -228,15 +201,13 @@ def plot_calibration(X, y, config):
 
 	plt.tight_layout(pad=0.0)
 	plt.savefig(config.plot_name, dpi=300)
-	# plt.show()
 	plt.clf()
 	plt.close()
 
 
 def plot_kl(X, y, config):
 
-	# ensemble_mus, ensemble_sigmas, true_values, ensemble_entropies = get_ensemble_predictions(X, y, ood=0, 
-	# 	config=config, mu)
+	ensemble_mus, ensemble_sigmas, true_values, ensemble_entropies = get_ensemble_predictions(X, y, ood=0, config=config)
 
 	fig, ax = plt.subplots()
 
@@ -250,22 +221,22 @@ def plot_kl(X, y, config):
 		ood_params = [r"$\mathcal{N}(2,1.5^2)$", r"$\mathcal{N}(4,1.5^2)$", r"$\mathcal{N}(6,1^2)$",
 		r"$\mathcal{N}(8,1^2)$", r"$\mathcal{N}(10,0.5^2)$", r"$\mathcal{N}(12,0.5^2)$"]
 
-		# for mu, sigma in zip(loc_values, scale_values):
-			# ensemble_mus, ensemble_sigmas, true_values, ensemble_entropies = get_ensemble_predictions(X, y, ood=100, 
-			# 	config=config, ood_loc=mu, ood_scale=sigma, ood_cluster_id=cluster_id)
+		for mu, sigma in zip(loc_values, scale_values):
+			ensemble_mus, ensemble_sigmas, true_values, ensemble_entropies = get_ensemble_predictions(X, y, ood=100, 
+				config=config, ood_loc=mu, ood_scale=sigma, ood_cluster_id=cluster_id)
 
-			# hist, bins = np.histogram(ensemble_entropies[..., cluster_id], bins = 30)
-			# kl_1.append(tfd.Normal(loc=0,scale=1).kl_divergence(tfd.Normal(loc=mu,scale=sigma)))
-			# entropy_mode_1.append(np.mean(bins[np.argmax(hist):np.argmax(hist)+2]))
+			hist, bins = np.histogram(ensemble_entropies[..., cluster_id], bins = 30)
+			kl_1.append(tfd.Normal(loc=0,scale=1).kl_divergence(tfd.Normal(loc=mu,scale=sigma)))
+			entropy_mode_1.append(np.mean(bins[np.argmax(hist):np.argmax(hist)+2]))
 
-			# x = np.linspace(mu - 3*sigma, mu + 3*sigma, 100)
-			# plt.plot(x, stats.norm.pdf(x, mu, sigma), label='N({},{})'.format(mu, sigma**2))
+			x = np.linspace(mu - 3*sigma, mu + 3*sigma, 100)
+			plt.plot(x, stats.norm.pdf(x, mu, sigma), label='N({},{})'.format(mu, sigma**2))
 
-		# np.save(config.plot_name.replace('.png', '_{}'.format(cluster_id)), np.stack((kl_1, entropy_mode_1), axis=-1))
+		np.save(config.plot_name.replace('.png', '_{}'.format(cluster_id)), np.stack((kl_1, entropy_mode_1), axis=-1))
 
-		plot_folder = config.plot_name.split('/')[0]
-		data = np.load(os.path.join(plot_folder, 'kl_plots_values', '{}_{}.npy'.format(config.dataset, cluster_id)))
-		kl_1, entropy_mode_1 = data[...,0], data[...,1]
+		# plot_folder = config.plot_name.split('/')[0]
+		# data = np.load(os.path.join(plot_folder, 'kl_plots_values', '{}_{}.npy'.format(config.dataset, cluster_id)))
+		# kl_1, entropy_mode_1 = data[...,0], data[...,1]
 
 		kl_sorted_ind_1 = np.argsort(kl_1)
 		kl_1 = np.array(kl_1)[kl_sorted_ind_1]
@@ -291,12 +262,9 @@ def plot_kl(X, y, config):
 
 		plt.xlabel(r'$D_{KL}$ (In Dist. || OOD)', fontsize=26)
 
-	plt.legend(fontsize=16, loc='lower right')
 	ax.tick_params(axis="x", labelsize=24)
 	ax.tick_params(axis="y", labelsize=24)
-
-
-		# plt.savefig(config.plot_name.replace('.png', '_{}.png'.format(cluster_id)))
+	plt.legend(fontsize=16, loc='lower right')
 	plt.tight_layout(pad=0)
 	plt.savefig(config.plot_name, dpi=300)
 	plt.clf()
@@ -377,14 +345,12 @@ def plot_ood_helper(ensemble_entropies, plot_name, config, deep_ensemble=False, 
 		plt.ylim(0,9)
 
 	if config.dataset == 'wine':
-		# plt.ylim(0,13)
 		plt.ylim(0,8)
 
 	if config.dataset == 'cement':
 		plt.ylim(0,7)
 
 	if config.dataset == 'power_plant':
-		# plt.ylim(0,10)
 		plt.ylim(0,6)
 
 	if config.dataset == 'kin8nm':
@@ -401,7 +367,6 @@ def plot_ood_helper(ensemble_entropies, plot_name, config, deep_ensemble=False, 
 
 	plt.tight_layout(pad=0)
 	plt.savefig(plot_name, dpi=300)
-	# plt.show()
 	plt.clf()
 	plt.close()
 
@@ -415,9 +380,9 @@ def plot_alzheimers_ood(X, y, config):
 		config=config, alzheimers_test_data='alzheimers_test_female')
 	plot_alzheimers_ood_helper(ensemble_entropies, os.path.join(config.plot_name,'in_F.png'), config, ood=0)
 
-	# ensemble_mus, ensemble_sigmas, true_values, ensemble_entropies = get_ensemble_predictions(X, y, ood=0, 
-	# 	config=config, alzheimers_test_data='alzheimers_test_male')
-	# plot_alzheimers_ood_helper(ensemble_entropies, os.path.join(config.plot_name,'out_M.png'), config, ood=1)
+	ensemble_mus, ensemble_sigmas, true_values, ensemble_entropies = get_ensemble_predictions(X, y, ood=0, 
+		config=config, alzheimers_test_data='alzheimers_test_male')
+	plot_alzheimers_ood_helper(ensemble_entropies, os.path.join(config.plot_name,'out_M.png'), config, ood=1)
 
 
 def plot_alzheimers_ood_helper(ensemble_entropies, plot_name, config ,ood=0):
@@ -425,31 +390,18 @@ def plot_alzheimers_ood_helper(ensemble_entropies, plot_name, config ,ood=0):
 	feature_sets = ['Interventions', 'Disfluency', 'Acoustic']
 
 	if ood == False:
-		# plt.plot([], [], ' ', label="In Dist.", color='white')
 		plt.ylabel('Density', fontsize=26)
 
 	for i in range(config.n_feature_sets):
 		print('feature set {}'.format(i))
-		# if ood == False:
 		b = sns.distplot(ensemble_entropies[...,i], hist = False, kde = True,
                  kde_kws = {'linewidth': 3},
                  label = feature_sets[i])
-		# else:
-		# 	if i == 2:
-		# 		b = sns.distplot(ensemble_entropies[...,i], hist = False, kde = True,
-		#                  kde_kws = {'linewidth': 3},
-		#                  label = 'OOD')
-		# 	else:
-		# 		b = sns.distplot(ensemble_entropies[...,i], hist = False, kde = True,
-		#                  kde_kws = {'linewidth': 3},
-		#                  label = 'In Dist.')
 	
 	plt.title('Alzheimers (female)', fontsize=26)
-	# plt.ylabel('Density', fontsize=26)
 
 	b.tick_params(labelsize=24)
 	b.set_xlabel('Entropy (Nats)', fontsize=26)
-	# plt.ylim(0,2)
 	plt.xlim(0,12)
 	plt.xticks(range(0,12,2), fontsize=24)
 	plt.yticks(range(0,6,1), fontsize=24)
@@ -457,11 +409,10 @@ def plot_alzheimers_ood_helper(ensemble_entropies, plot_name, config ,ood=0):
 
 	plt.tight_layout(pad=0)
 	plt.savefig(plot_name, dpi=300)
-	# plt.show()
 	plt.clf()
 	plt.close()
 
-def show(X, y, config):
+def show_model_summary(X, y, config):
 
 	n_feature_sets = len(X)
 	model, loss= models.build_model(config)
@@ -477,7 +428,6 @@ def get_ensemble_predictions(X, y, ood=False, config=None, ood_loc=0, ood_scale=
 	all_mus, all_sigmas, true_values, all_entropies, all_rmses = [], [], [], [], []
 	n_feature_sets = len(X)
 	for train_index, test_index in kf.split(y):
-		# if fold == fold_to_use:
 		print('Fold ', fold)
 		y_train, y_val = y[train_index], y[test_index]
 		x_train = [i[train_index] for i in X]
@@ -570,36 +520,3 @@ def get_ensemble_predictions(X, y, ood=False, config=None, ood_loc=0, ood_scale=
 	print('Total val rmse', np.mean(all_rmses))
 
 	return all_mus, all_sigmas, true_values, all_entropies
-
-def defer_analysis(true_values, predictions, defer_based_on):
-
-	defered_rmse_list, non_defered_rmse_list = [], []
-	defer_based_arg_sorted = np.argsort(defer_based_on)
-	true_values_sorted = true_values[defer_based_arg_sorted]
-	predictions_sorted = predictions[defer_based_arg_sorted]
-	for i in range(predictions.shape[0]+1):
-		# if i==predictions.shape[0]:
-		# 	defered_rmse = mean_squared_error(true_values, predictions, squared=False)
-		# elif i==0:
-		# 	defered_rmse = 0
-		# else:
-		# 	defered_rmse = mean_squared_error(
-		# 		true_values[np.argsort(defer_based_on)][-i:], 
-		# 		predictions[np.argsort(defer_based_on)][-i:], squared=False)
-		# defered_rmse_list.append(defered_rmse)
-
-		if i==0:
-			non_defered_rmse = mean_squared_error(true_values, predictions, squared=False)
-		elif i==predictions.shape[0]:
-			non_defered_rmse = 0
-		else:
-			non_defered_rmse = mean_squared_error(
-				true_values_sorted[:-i], 
-				predictions_sorted[:-i], squared=False)
-
-		non_defered_rmse_list.append(non_defered_rmse)
-		# print('\n{} datapoints deferred'.format(i))
-
-		# print('Defered RMSE : {:.3f}'.format(defered_rmse))
-		# print('Not Defered RMSE : {:.3f}'.format(non_defered_rmse))
-	return defered_rmse_list, non_defered_rmse_list

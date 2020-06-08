@@ -1,11 +1,82 @@
-# AD_classification
+# Why have a Unified Uncertainty? Disentangling it using Deep Split Ensembles (NeurIPS 2020)
 
-Alzheimer's Dementia Recognition through Spontaneous Speech
+## Setup
+`pip install -r requirements.txt`
 
 ## Run
-Set config parameters and then `python main.py`
 
-### Compare features extraction
+### Train
+```
+python main.py train \
+--datasets_dir datasets \
+--dataset boston \ 
+--model_dir boston_models
+```
+
+### Evaluate
+```
+python main.py evaluate \
+--datasets_dir datasets \
+--dataset boston \ 
+--model_dir boston_models \
+--verbose 1
+```
+
+### Experiments
+
+#### Calibration - Clusterwise OOD
+```
+python main.py experiment \
+--exp_name clusterwise_ood \
+--plot_name plots \ 
+--datasets_dir datasets \
+--dataset boston \ 
+--model_dir boston_models
+```
+
+#### Calibration - KL Divergence vs Mode
+```
+python main.py experiment \
+--exp_name kl_mode \
+--plot_name plots \ 
+--datasets_dir datasets \
+--dataset boston \ 
+--model_dir boston_models
+```
+
+#### Calibration - Defer Simulation
+```
+python main.py experiment \
+--exp_name defer_simulation \
+--plot_name plots \ 
+--datasets_dir datasets \
+--dataset boston \ 
+--model_dir boston_models
+```
+
+#### Toy regression
+```
+python main.py experiment \
+--exp_name toy_regression \
+--plot_name toy \ 
+--model_dir toy_models
+```
+
+#### Show model parameters
+```
+python main.py experiment \
+--exp_name show_summary \
+--datasets_dir datasets \
+--dataset boston \ 
+```
+
+## Further Notes
+
+### Human experts
+
+Set `--mod_split` flag in all commands to `human`
+
+### ADReSS - Compare features extraction
 
 * First download the [opensmile](https://www.audeering.com/opensmile/) toolkit.
 * Unpack downloaded file using tar -zxvf openSMILE-2.x.x.tar.gz
@@ -14,28 +85,3 @@ Set config parameters and then `python main.py`
 * Use these commands make -j4 ; make
 * finally use make install
 =======
-
-## SVM experiment
-### 10 features
-Tried for different values of C and gamma, best values C = 10, gamma = 0.5
-5 folds, these are the results
-![picture](images/svm_cv.png)
-
-### 11 features
-
-Tried svm on 11 features
-![picture](images/11_features.png)
-
-
-### Paper notes
-
-offline training say on phone or webapp, edge ML.
-one of top 5 causes of deaths - verify (cite source).
-remove intervention count/rate from pause_features.
-compare counts vs rates as features.
-establish individual model baselines, compare to ensemble (different types of voting).
-
-### Model submissions
-
-1. trained on full dataset (soft or log reg).
-2. 4th out of 5 fold upon monitoring val loss (log reg voting).

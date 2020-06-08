@@ -149,7 +149,7 @@ def _boston(config):
     return data
 
 def _cement(config):
-    data_df = pd.read_csv(os.path.join(config.regression_datasets_dir, 'cement.csv'))
+    data_df = pd.read_csv(os.path.join(config.datasets_dir, 'cement.csv'))
     
     target_col = 'Concrete compressive strength(MPa, megapascals) '
     y = data_df[target_col]
@@ -182,7 +182,7 @@ def _cement(config):
 
 def _energy_efficiency(config):
 
-    data_df = pd.read_csv(os.path.join(config.regression_datasets_dir, 'energy_efficiency.csv'))
+    data_df = pd.read_csv(os.path.join(config.datasets_dir, 'energy_efficiency.csv'))
     
     target_col1 = 'Heating Load'
     target_col2 = 'Cooling Load'
@@ -232,7 +232,7 @@ def _energy_efficiency(config):
     return data
 
 def _kin8nm(config):
-    data_df = pd.read_csv(os.path.join(config.regression_datasets_dir, 'kin8nm.csv'))
+    data_df = pd.read_csv(os.path.join(config.datasets_dir, 'kin8nm.csv'))
     
     y = data_df['y']
 
@@ -262,7 +262,7 @@ def _kin8nm(config):
     return data
 
 def _power_plant(config):
-    data_df = pd.read_csv(os.path.join(config.regression_datasets_dir, 'power_plant.csv'))
+    data_df = pd.read_csv(os.path.join(config.datasets_dir, 'power_plant.csv'))
     
     y = data_df['PE']
 
@@ -302,7 +302,7 @@ def _power_plant(config):
     return data
 
 def _protein(config):
-    data_df = pd.read_csv(os.path.join(config.regression_datasets_dir, 'protein.csv'))
+    data_df = pd.read_csv(os.path.join(config.datasets_dir, 'protein.csv'))
     
     y = data_df['RMSD']
 
@@ -333,7 +333,7 @@ def _protein(config):
     return data
 
 def _wine(config):
-    data_df = pd.read_csv(os.path.join(config.regression_datasets_dir, 'wine.csv'))
+    data_df = pd.read_csv(os.path.join(config.datasets_dir, 'wine.csv'))
     
     y = data_df['quality']
 
@@ -377,7 +377,7 @@ def _yacht(config):
     cols = ['Longitudinal position of the center of buoyancy', 'Prismatic coefficient', 'Length-displacement ratio', 
             'Beam-draught ratio', 'Length-beam ratio', 'Froude number', 'Residuary resistance per unit weight of displacement']
 
-    data_df = pd.read_csv(os.path.join(config.regression_datasets_dir, 'yacht.data'), sep="\\s+", names=cols)
+    data_df = pd.read_csv(os.path.join(config.datasets_dir, 'yacht.data'), sep="\\s+", names=cols)
     target_col = 'Residuary resistance per unit weight of displacement'
     y = data_df[target_col]
     df = data_df.drop(columns=[target_col])
@@ -410,7 +410,7 @@ def _naval(config):
             't48', 't1', 't2', 'p48', 'p1', 'p2', 'pexh',
             'tic', 'mf', 'y1', 'y2']
 
-    data_df = pd.read_csv(os.path.join(config.regression_datasets_dir, 'naval.csv'), sep='\\s+', names=cols)
+    data_df = pd.read_csv(os.path.join(config.datasets_dir, 'naval.csv'), sep='\\s+', names=cols)
     target_col = ['y1', 'y2']
     
     y = data_df[target_col[0]]
@@ -455,7 +455,7 @@ def _naval(config):
 
 def _msd(config):
     
-    data_df = pd.read_csv(os.path.join(config.regression_datasets_dir, 'year_prediction.csv'))
+    data_df = pd.read_csv(os.path.join(config.datasets_dir, 'year_prediction.csv'))
     target_col = 'label'
     
     y = data_df[target_col]
@@ -495,7 +495,7 @@ def _msd(config):
     return data
 
 def _life(config):
-    data_df = pd.read_csv(os.path.join(config.regression_datasets_dir, 'life_expectancy.csv'))
+    data_df = pd.read_csv(os.path.join(config.datasets_dir, 'life_expectancy.csv'))
     data_df[['Country']] = data_df[['Country']].apply(LabelEncoder().fit_transform)
     data_df[['Status']] = data_df[['Status']].apply(LabelEncoder().fit_transform)
     data_df = data_df.dropna()
