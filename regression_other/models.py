@@ -54,10 +54,13 @@ def build_model(config):
 	if config.build_model=='gaussian':
 		loss = lambda y, p_y: -p_y.log_prob(y)
 		model = Sequential()
-		model.add(Dense(50, activation='relu', dtype='float64'))
+		if config.dataset=='protein' or config.dataset=='msd':
+			model.add(Dense(100, activation='relu', dtype='float64'))
+		else:
+			model.add(Dense(50, activation='relu', dtype='float64') )
 		model.add(Dense(2, dtype='float64'))
 		model.add(tfp.layers.DistributionLambda(lambda t: tfd.Normal(loc=t[..., :1], scale=tf.math.softplus(t[..., 1:])+1e-6), dtype='float64'))
-	
+		
 	if config.build_model=='combined_pog':
 		loss = lambda y, p_y: -p_y.log_prob(y)
 
@@ -72,7 +75,8 @@ def build_model(config):
 			if config.units_type == 'absolute':
 				units = config.units
 			elif config.units_type == 'prorated':
-				units = math.ceil(config.feature_split_lengths[i] * config.units / sum(config.feature_split_lengths) )
+				print(config.feature_split_lengths[i] * config.units / sum(config.feature_split_lengths))
+				units = math.floor(config.feature_split_lengths[i] * config.units / sum(config.feature_split_lengths) )
 			feature_extractors.append(create_feature_extractor_block(inputs[i], units = units))
 
 		stddevs = []
@@ -115,7 +119,7 @@ def build_model(config):
 
 		model = tf.keras.models.Model(inputs=inputs, outputs=outputs)
 
-	if config.dataset in ['alzheimers', 'alzheimers_test']:
+	if 'alzheimers' in config.dataset:
 		model = alzheimers_model()
 		loss = lambda y, p_y: -p_y.log_prob(y)
 
@@ -135,7 +139,7 @@ def alzheimers_model():
 	intervention_x = BatchNormalization()(intervention_x)
 	# intervention_x = Dropout(0.2)(intervention_x)
 
-	intervention_std = Dense(1)(intervention_x)
+	intervention_std = Dense(1, kernel_regularizer=tf.keras.regularizers.l2(0.01), activity_regularizer=tf.keras.regularizers.l1(0.01))(intervention_x)
 
 	pause_x = Dense(24, activation='relu')(pause_inputs)
 	pause_x = BatchNormalization()(pause_x)
@@ -147,7 +151,7 @@ def alzheimers_model():
 	pause_x = BatchNormalization()(pause_x)
 	# pause_x = Dropout(0.2)(pause_x)
 
-	pause_std = Dense(1)(pause_x)
+	pause_std = Dense(1,  kernel_regularizer=tf.keras.regularizers.l2(0.01), activity_regularizer=tf.keras.regularizers.l1(0.01))(pause_x)
 
 	compare_x = Dense(24, activation='relu')(compare_inputs)
 	compare_x = BatchNormalization()(compare_x)
@@ -159,11 +163,11 @@ def alzheimers_model():
 	compare_x = BatchNormalization()(compare_x)
 	# compare_x = Dropout(0.2)(compare_x)
 
-	compare_std = Dense(1)(compare_x)
+	compare_std = Dense(1,  kernel_regularizer=tf.keras.regularizers.l2(0.01), activity_regularizer=tf.keras.regularizers.l1(0.01))(compare_x)
 
 	mu = Concatenate()([intervention_x, pause_x, compare_x])
-	mu = Dense(8, activation='relu')(mu)
-	mu = BatchNormalization()(mu)
+	# mu = Dense(8, activation='relu')(mu)
+	# mu = BatchNormalization()(mu)
 	mu = Dense(1, kernel_regularizer=tf.keras.regularizers.l2(0.01), activity_regularizer=tf.keras.regularizers.l1(0.01))(mu)
 
 	intervention_gaus = Concatenate()([mu, intervention_std])

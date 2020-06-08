@@ -108,8 +108,8 @@ def load_dataset(config):
     elif config.dataset=='alzheimers':
         data = _alzheimers(config)
 
-    elif config.dataset=='alzheimers_test':
-        data = _alzheimers(config)
+    elif 'alzheimers_test' in config.dataset:
+        data = _alzheimers_test(config)
 
     return data
 
@@ -540,7 +540,7 @@ def _alzheimers(config):
     sys.path.append('..')
     import dataset as alzheimers_dataset
 
-    config = EasyDict({
+    alzheimers_config = EasyDict({
         # 'task': 'classification',
         'task': 'regression',
 
@@ -549,9 +549,9 @@ def _alzheimers(config):
 
         'longest_speaker_length': 32,
         'n_pause_features': 11,
-        'compare_features_size': 21,
+        'compare_features_size': 21
     })
-    alzheimers_data = alzheimers_dataset.prepare_data(config)
+    alzheimers_data = alzheimers_dataset.prepare_data(alzheimers_config, select_gender=config.select_gender)
 
     data = {}
     data['y'] = alzheimers_data['y_reg']
@@ -564,18 +564,33 @@ def _alzheimers_test(config):
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     import dataset as alzheimers_dataset
 
-    config = EasyDict({
-        'dataset_dir': 'datasets/ADReSS-IS2020-data/test',
+    test_data_name = config.dataset.split('_')[-1]
+
+    if test_data_name in ['male', 'female']:
+        print(test_data_name)
+        config.select_gender = test_data_name
+        return _alzheimers(config)
+
+    alzheimers_config = EasyDict({
+        'dataset_dir': 'datasets/ADReSS-IS2020-data/{}'.format(test_data_name),
 
         'longest_speaker_length': 32,
         'n_pause_features': 11,
         'compare_features_size': 21,
     })
-    alzheimers_data = alzheimers_dataset.prepare_test_data(config)
+    alzheimers_data = alzheimers_dataset.prepare_test_data(alzheimers_config)
 
     data = {}
     data['y'] = alzheimers_data['y_reg']
     data['0'] = alzheimers_data['intervention']
     data['1'] = alzheimers_data['pause']
     data['2'] = alzheimers_data['compare']
+
+    min_len = min([len(data[i]) for i in data])
+    data['0'] = data['0'][:min_len]
+    data['1'] = data['1'][:min_len]
+    data['2'] = data['2'][:min_len]
+    data['y'] = data['y'][:min_len]
+    print(data['2'].shape)
+
     return data

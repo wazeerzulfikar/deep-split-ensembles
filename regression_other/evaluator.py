@@ -162,11 +162,12 @@ def train_a_fold(fold, model_number, config, x_train, y_train, x_val, y_val):
 	model, loss = build_model(config)
 
 	epochs = config.epochs
-	lr = config.learning_rate
+	# lr = config.learning_rate
 	batch_size = config.batch_size
 
-	model.compile(loss=loss, optimizer=Adam(learning_rate=lr))
-	checkpoint_filepath = os.path.join(config.model_dir, config.dataset, config.expt_name, 'fold_{}_model_{}.h5'.format(fold, model_number))
+	model.compile(loss=loss, optimizer=Adam(config.lr))
+	# checkpoint_filepath = os.path.join(config.model_dir, config.dataset, config.expt_name, 'fold_{}_model_{}.h5'.format(fold, model_number))
+	checkpoint_filepath = os.path.join(config.model_dir,'fold_{}_model_{}.h5'.format(fold, model_number))
 	checkpoints = ModelCheckpoint(checkpoint_filepath,
 								  monitor='val_loss', 
 								  verbose=0, 
@@ -178,7 +179,7 @@ def train_a_fold(fold, model_number, config, x_train, y_train, x_val, y_val):
 	history = model.fit(x_train, y_train,
 				  epochs=epochs,
 				  batch_size=batch_size,
-				  verbose=0,
+				  verbose=config.verbose,
 				  callbacks=[checkpoints],
 				  validation_data=(x_val, y_val))
 
