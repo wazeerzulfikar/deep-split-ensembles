@@ -5,8 +5,8 @@ import time
 np.random.seed(0)
 
 from evaluator import evaluate
-import combined_uncertainty
-import load_dataset
+import trainer
+import dataset
 import experiments
 import utils
 
@@ -45,7 +45,7 @@ config = utils.EasyDict({
 	'mixture_approximation': 'gaussian',
 	# 'mixture_approximation': 'none',
 
-	'verbose': 1,
+	'verbose': 0,
 
 	'lr': 0.01,
 	'epochs': 1500,
@@ -53,7 +53,7 @@ config = utils.EasyDict({
 	})
 
 def main(config):
-	data = load_dataset.load_dataset(config)
+	data = dataset.load_dataset(config)
 
 	n_feature_sets = len(data.keys()) - 1
 	X = [np.array(data['{}'.format(i)]) for i in range(n_feature_sets)]
@@ -85,11 +85,11 @@ def main(config):
 
 	if config.action == 'train':
 		print('Training..')
-		combined_uncertainty.train(X, y, config)
+		trainer.train(X, y, config)
 
 	elif config.action == 'evaluate':
 		print('Evaluating..')
-		combined_uncertainty.evaluate(X, y, config)
+		trainer.evaluate(X, y, config)
 
 	elif config.action == 'plot_calibration':
 		print('Plotting Calibration..')

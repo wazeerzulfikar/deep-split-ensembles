@@ -23,10 +23,9 @@ import seaborn as sns
 
 import models
 import evaluator
-import combined_uncertainty
-import load_dataset
+import trainer
+import dataset
 from alzheimers import utils as alzheimers_utils
-
 
 tfd = tfp.distributions
 
@@ -115,8 +114,8 @@ def plot_toy_regression(config):
 		config.feature_split_lengths = [i.shape[1] for i in x]
 
 
-		# model, _ = combined_uncertainty.train_a_model(fold, 0, x, y, x, y, config)
-		# combined_uncertainty.train_deep_ensemble(x, y, x, y, fold, config, train=True)
+		# model, _ = trainer.train_a_model(fold, 0, x, y, x, y, config)
+		# trainer.train_deep_ensemble(x, y, x, y, fold, config, train=True)
 
 		mus, featurewise_sigmas = [], [[] for i in range(config.n_feature_sets)]
 		for model_id in range(config.n_models):
@@ -489,7 +488,7 @@ def standard_scale(x_train, x_test):
 	x_train = scalar.transform(x_train)
 	x_test = scalar.transform(x_test)
 	return x_train, x_test
-	
+
 
 def get_ensemble_predictions(X, y, ood=False, config=None, ood_loc=0, ood_scale=1, ood_cluster_id=0,
  alzheimers_test_data=None):
@@ -506,7 +505,7 @@ def get_ensemble_predictions(X, y, ood=False, config=None, ood_loc=0, ood_scale=
 
 		if alzheimers_test_data is not None:
 			config.dataset = alzheimers_test_data
-			alzheimers_test_data = load_dataset._alzheimers_test(config)
+			alzheimers_test_data = dataset._alzheimers_test(config)
 			x_val = [np.array(alzheimers_test_data['{}'.format(i)]) for i in range(n_feature_sets)]
 			y_val = np.array(alzheimers_test_data['y'])
 			print('Alzheimers Testing..')

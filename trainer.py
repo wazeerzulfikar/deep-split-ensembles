@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 
 import models
 from alzheimers import utils as alzheimers_utils
-import load_dataset
+import dataset
 
 tfd = tfp.distributions
 
@@ -41,7 +41,7 @@ def run_all_folds(X, y, train, config):
 		x_train = [i[train_index] for i in X]
 		x_val = [i[test_index] for i in X]
 		if config.dataset in ['alzheimers_test']:
-			alzheimers_test_data = load_dataset._alzheimers_test(config)
+			alzheimers_test_data = dataset._alzheimers_test(config)
 			x_val = [np.array(alzheimers_test_data['{}'.format(i)]) for i in range(n_feature_sets)]
 			y_val = np.array(alzheimers_test_data['y'])
 			print('Alzheimers Testing..')
