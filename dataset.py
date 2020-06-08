@@ -7,7 +7,7 @@ import csv
 
 import numpy as np
 np.random.seed(0)
-p = np.random.permutation(108) # n_samples = 108
+# p = np.random.permutation(108) # n_samples = 108
 p_subjects = np.random.RandomState(seed=0).permutation(242)
 import tensorflow as tf
 from tensorflow.keras import layers
@@ -92,7 +92,7 @@ def get_compare_features(compare_filename):
     return compare_features_floats
 
 
-def prepare_data(config):
+def prepare_data(config, select_gender=None):
 	'''
 	Prepare all data
 	'''
@@ -217,6 +217,22 @@ def prepare_data(config):
 	y = y_intervention
 	y_reg = y_reg_intervention
 
+	if select_gender in ['male', 'female']:
+		genders_cc = utils.get_gender_values(os.path.join(dataset_dir, 'cc_meta_data.txt'))
+		genders_cd = utils.get_gender_values(os.path.join(dataset_dir, 'cd_meta_data.txt'))
+		genders = np.concatenate((genders_cc, genders_cd), axis=0)
+		selected_indices = np.squeeze(np.argwhere(genders==select_gender))
+		p = np.random.permutation(len(selected_indices)) # n_samples = 108
+
+		X_intervention = X_intervention[selected_indices]
+		X_pause = X_pause[selected_indices]
+		X_compare = X_compare[selected_indices]
+		y = y[selected_indices]
+		y_reg = y_reg[selected_indices]
+
+	else:	
+		p = np.random.permutation(108) # n_samples = 108
+
 	X_intervention = X_intervention[p]
 	X_pause = X_pause[p]
 	# X_spec = X_spec[p] 
@@ -279,7 +295,7 @@ def prepare_test_data(config):
 	y_reg = np.array(y_reg).astype(np.float32)
 
 	assert X_intervention.shape[0]==X_pause.shape[0] and y_reg.shape[0]==X_intervention.shape[0], '~ Data streams are different ~'
-	print('~ Data streams verified ~')
+	print('~ Test Data streams verified ~')
 
 
 	return {

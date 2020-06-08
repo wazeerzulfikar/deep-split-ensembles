@@ -169,5 +169,18 @@ def get_mp3_audio_length(filename):
     duration = audio.info.length
     return duration
 
+################# GENDER FEATURES #################
+
+def get_gender_values(metadata_filename):
+    values = []
+    with open(metadata_filename, 'r') as f:
+        content = f.readlines()[1:]
+        for idx, line in enumerate(content):
+            token = line.split('; ')[-2].rstrip()
+            if token in ['male', 'female']:  values.append(token)
+            else:   values.append(30) # NA fill value
+
+    return values
+
 
 
