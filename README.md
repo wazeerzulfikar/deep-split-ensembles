@@ -20,7 +20,7 @@ source venv/bin/activate
 
 ### Train
 ```
-python main.py train --datasets_dir datasets --dataset boston --model_dir boston_models
+python main.py train --datasets_dir datasets --dataset boston --model_dir boston_models --verbose 1
 ```
 
 ### Evaluate
@@ -32,22 +32,22 @@ python main.py evaluate --datasets_dir datasets --dataset boston --model_dir bos
 
 #### Calibration - Defer Simulation
 ```
-python main.py experiment --exp_name defer_simulation --plot_name plots --datasets_dir datasets --dataset boston --model_dir boston_models
+python main.py experiment --exp_name defer_simulation --plot_path plots --datasets_dir datasets --dataset boston --model_dir boston_models
 ```
 
 #### Calibration - Clusterwise OOD
 ```
-python main.py experiment --exp_name clusterwise_ood --plot_name plots --datasets_dir datasets --dataset boston --model_dir boston_models
+python main.py experiment --exp_name clusterwise_ood --plot_path plots --datasets_dir datasets --dataset boston --model_dir boston_models
 ```
 
 #### Calibration - KL Divergence vs Mode
 ```
-python main.py experiment --exp_name kl_mode --plot_name plots --datasets_dir datasets --dataset boston --model_dir boston_models
+python main.py experiment --exp_name kl_mode --plot_path plots --datasets_dir datasets --dataset boston --model_dir boston_models
 ```
 
 #### Toy regression
 ```
-python main.py experiment --exp_name toy_regression --plot_name toy --model_dir toy_models --dataset toy
+python main.py experiment --exp_name toy_regression --plot_path toy --model_dir toy_models --dataset toy
 ```
 
 #### Show model parameters
@@ -64,7 +64,8 @@ python main.py experiment --exp_name empirical_rule_test --datasets_dir datasets
 
 ### Human experts
 
-Set `--mod_split` flag in all commands to `human`
+Set `--mod_split` flag in all commands to `human`, to access splits created by human experts.
+Only available for Power Plant Output and Red Wine Quality
 
 ### ADReSS - Compare features extraction
 

@@ -62,6 +62,7 @@ def plot_kl(X, y, config):
 	fig, ax = plt.subplots()
 
 	for cluster_id in range(config.n_feature_sets):
+
 		kl_1= []
 		entropy_mode_1 = []
 
@@ -81,7 +82,7 @@ def plot_kl(X, y, config):
 
 			x = np.linspace(mu - 3*sigma, mu + 3*sigma, 100)
 
-		np.save(config.plot_name.replace('.png', '_{}'.format(cluster_id)), np.stack((kl_1, entropy_mode_1), axis=-1))
+		# np.save(config.plot_name.replace('.png', '_{}'.format(cluster_id)), np.stack((kl_1, entropy_mode_1), axis=-1))
 
 		# plot_folder = config.plot_name.split('/')[0]
 		# data = np.load(os.path.join(plot_folder, 'kl_plots_values', '{}_{}.npy'.format(config.dataset, cluster_id)))
@@ -93,7 +94,10 @@ def plot_kl(X, y, config):
 		ood_params = np.array(ood_params)[kl_sorted_ind_1]
 
 		plt.scatter(kl_1, entropy_mode_1, s=96)
-		plt.plot(kl_1, entropy_mode_1, label='Cluster '+str(cluster_id+1), linewidth=3)
+		if cluster_id <3:
+			plt.plot(kl_1, entropy_mode_1, label='Cluster '+str(cluster_id+1), linewidth=3)
+		else:
+			plt.plot(kl_1, entropy_mode_1, label='Cluster '+str(cluster_id), linewidth=3)
 
 		plt.title(config.dataset.capitalize().replace('_',' ')+' (hier. clust.)', fontsize=26)
 		
@@ -108,7 +112,7 @@ def plot_kl(X, y, config):
 			plt.title('Concrete'+' (hier. clust.)', fontsize=26)
 
 		if config.dataset == 'power_plant':
-			plt.title('Power'+' (hier. clust.)', fontsize=26)
+			plt.title('Power'+' (human experts)', fontsize=26)
 
 		plt.xlabel(r'$D_{KL}$ (In Dist. || OOD)', fontsize=26)
 
@@ -127,8 +131,8 @@ def plot_ood(X, y, config):
 		plot_alzheimers_ood(X, y, config)
 		return
 
-	# ensemble_entropies = np.concatenate(np.load('plots/clusterwise_ood/deep_ensemble/{}_val_entropy.npy'.format(config.dataset),
-		# allow_pickle=True))
+	# ensemble_entropies = np.concatenate(np.load('plots/clusterwise_ood/deep_ensemble/{}_val_entropy.npy'.format(config.dataset), 
+	# 	allow_pickle=True))
 	config.plot_name = config.plot_name.replace('.png', '')
 	os.makedirs(config.plot_name, exist_ok=True)
 
@@ -537,7 +541,7 @@ def get_ensemble_predictions(X, y, ood=False, config=None, ood_loc=0, ood_scale=
 			x_val[0][:,0] = np.random.normal(loc=6, scale=2, size=x_val[0][:,0].shape)
 			x_val[1][:,0] = np.random.normal(loc=12, scale=1, size=x_val[1][:,0].shape)
 		if ood == 100:
-			x_val[ood_cluster_id][:,1] = np.random.normal(loc=ood_loc, scale=ood_scale, size=x_val[ood_cluster_id][:,0].shape)
+			x_val[ood_cluster_id][:,0] = np.random.normal(loc=ood_loc, scale=ood_scale, size=x_val[ood_cluster_id][:,0].shape)
 
 		mus = []
 		featurewise_entropies = [[] for i in range(n_feature_sets)]

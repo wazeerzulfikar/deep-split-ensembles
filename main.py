@@ -48,12 +48,11 @@ def main(config):
 		trainer.evaluate(X, y, config)
 
 	elif config.task == 'experiment':
+
 		config.plot_name = os.path.join(config.plot_path, '{}_{}.png'.format(config.dataset, config.exp_name))
+		
 		if config.exp_name == 'defer_simulation':
 			print('Plotting Calibration..')
-			# config.plot_name = 'calibration_plots/calibration_final/{}.png'.format(config.dataset)
-			# config.plot_name = 'plots/defer_simulation/{}.png'.format(config.dataset)
-			# config.plot_name = 'calibration_plots/alzheimers/{}.png'.format(config.model_dir.split('/')[-1])
 			experiments.plot_defer_simulation(X, y, config)
 
 		elif config.exp_name == 'toy_regression':
@@ -62,15 +61,10 @@ def main(config):
 
 		elif config.exp_name == 'clusterwise_ood':
 			print('Plotting OOD..')
-			# config.plot_name = 'entropy_plots/{}/'.format(config.dataset)
-			# config.plot_name = 'entropy_plots_human/{}/'.format(config.dataset)
-			# config.plot_name = 'entropy_plots_human/{}/'.format(config.dataset)
-			# config.plot_name = 'plots/clusterwise_ood/{}/'.format(config.dataset)
 			experiments.plot_ood(X, y, config)
 
 		elif config.exp_name == 'kl_mode':
 			print('Plotting KL..')
-			# config.plot_name = 'plots/kl_plots/{}.png'.format(config.dataset)
 			experiments.plot_kl(X, y, config)
 
 		elif config.exp_name == 'show_summary':
@@ -79,19 +73,9 @@ def main(config):
 
 		elif config.exp_name == 'empirical_rule_test':
 			print('Emprical rule tests..')
-			config.plot_name = 'plots/empirical_rule_test/{}.png'.format(config.dataset)
-
 			experiments.empirical_rule_test(X, y, config)
-
-run_all = False
 
 if __name__ == '__main__':
 	opts = Opts()
 	config = opts.parse()
 	main(config)
-	# if run_all:
-	# 	datasets = ['boston', 'cement', 'power_plant', 'wine', 'yacht', 'kin8nm', 'energy_efficiency', 'protein', 'naval', 'msd']
-	# 	for d in datasets:
-	# 		config.dataset = d
-	# 		config.model_dir = 'deepmind-1000/{}-1000'.format(d)
-	# 		main(config)
