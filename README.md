@@ -57,7 +57,7 @@ python main.py experiment --exp_name show_summary --datasets_dir datasets --data
 
 #### Empirical rule test
 ```
-python main.py experiment --exp_name empirical_rule_test --datasets_dir datasets --dataset boston
+python main.py experiment --exp_name empirical_rule_test --datasets_dir datasets --dataset boston --model_dir boston_models
 ```
 
 ## Further Notes
