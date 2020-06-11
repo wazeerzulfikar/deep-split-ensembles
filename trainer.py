@@ -155,7 +155,7 @@ def train_deep_ensemble(x_train, y_train, x_val, y_val, fold, config, train=Fals
 		print('Val RMSE: {:.3f}'.format(val_rmse))
 
 		n_val_samples = y_val.shape[0]
-		if verbose > 1:
+		if config.verbose > 1:
 			for i in range(n_val_samples):
 				stddev_print_string = ''
 				for j in range(n_feature_sets):

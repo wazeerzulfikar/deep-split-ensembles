@@ -12,164 +12,13 @@ import seaborn as sns
 import models
 import trainer
 import dataset
+import utils
 from extras import evaluator
 from alzheimers import utils as alzheimers_utils
 
 tfd = tfp.distributions
 
-def plot_toy_regression(config):
-	config.units = 100
-	fold = 0
-	config.n_models = 5
-	config.epochs = 2000
-	config.lr = 0.1
-	config.verbose = 1
-	config.batch_size = 8
-	toy='3d'
-	graph_limits = [-5, 5]
-	x_limits = [-4, 4]
-
-	n_datapoints = 40
-	x_1d = np.linspace(graph_limits[0], graph_limits[1], num=n_datapoints)
-
-	x1 = np.random.uniform(x_limits[0], x_limits[1], size=(n_datapoints,1))
-	e1 = np.random.normal(loc=0, scale=3, size=(n_datapoints,1))
-
-	power = 3
-
-	if toy == '3d':
-
-		x2 = np.random.uniform(x_limits[0], x_limits[1], size=(n_datapoints,1))
-		e2 = np.random.normal(loc=1, scale=2, size=(n_datapoints,1))
-
-		x = [x1, x2]
-
-		x1x1, x2x2 = np.meshgrid(range(graph_limits[0],graph_limits[1]+1), range(graph_limits[0],graph_limits[1]+1))
-		y_2d = np.power(x1x1, power) * np.power(x2x2, power)
-		y = (np.power(x1, power) + e1) * (np.power(x2, power) + e2)
-
-		y_2d = np.squeeze(y_2d)
-
-	elif toy == '2d':
-		x2 = np.random.uniform(x_limits[0], x_limits[1], size=(n_datapoints,1))
-		e2 = np.random.normal(loc=1, scale=2, size=(n_datapoints,1))
-
-		x = [x1, x2]
-		y = (np.power(x1, 4) + e1) * (np.power(x2, 4) + e2)
-		x_1d = np.expand_dims(x_1d, axis=-1)
-		y_1d = (np.power(x_1d, 3) + e1) 
-		y_1d = np.squeeze(y_1d)	
-
-	y = np.squeeze(y)
-
-	if config.build_model == 'gaussian':
-		x = np.squeeze(x)
-		x = np.transpose(x)
-		y = np.expand_dims(y, axis=-1)
-		print(x.shape)
-		print(y.shape)
-		mus, sigmas = [], []
-		for model_id in range(config.n_models):
-			# model, _ = evaluator.train_a_fold(0, model_id, config, x, y, x, y)
-			model, _ = models.build_model(config)
-			model.build((None, 2))
-			model.load_weights(os.path.join(config.model_dir,'fold_{}_nll_{}.h5'.format(0, model_id)))
-			preds = model(np.stack([x_1d, x_1d], axis=-1))
-			mus.append(preds.mean().numpy())
-			sigmas.append(preds.stddev().numpy())
-
-		ensemble_mus = np.mean(mus, axis=0).reshape(-1,1)
-
-		ensemble_sigmas = np.sqrt(np.mean(np.square(sigmas) + np.square(ensemble_mus), axis=0).reshape(-1,1) - np.square(ensemble_mus))
-
-		ensemble_mus = np.squeeze(ensemble_mus, axis=-1)
-		ensemble_sigmas = np.squeeze(ensemble_sigmas, axis=-1)
-
-		ensemble_sigmas = np.stack((ensemble_sigmas, ensemble_sigmas), axis=0)
-
-	else:
-
-		config.n_feature_sets = len(x)
-		config.feature_split_lengths = [i.shape[1] for i in x]
-
-
-		# model, _ = trainer.train_a_model(fold, 0, x, y, x, y, config)
-		# trainer.train_deep_ensemble(x, y, x, y, fold, config, train=True)
-
-		mus, featurewise_sigmas = [], [[] for i in range(config.n_feature_sets)]
-		for model_id in range(config.n_models):
-			print(model_id)
-			model, _ = models.build_model(config)
-			model.load_weights(os.path.join(config.model_dir, 'fold_{}_nll_{}.h5'.format(fold, model_id)))
-
-			pred = model([x_1d, x_1d])
-			mus.append(pred.mean().numpy()[:,0])
-			for i in range(config.n_feature_sets):
-				featurewise_sigmas[i].append(pred.stddev().numpy()[:, i:i+1])
-
-		ensemble_mus = np.mean(mus, axis=0).reshape(-1,1)
-		ensemble_sigmas = []
-
-		for i in range(config.n_feature_sets):
-			ensemble_sigma = np.sqrt(np.mean(np.square(featurewise_sigmas[i]) + np.square(ensemble_mus), axis=0).reshape(-1,1) - np.square(ensemble_mus))
-			ensemble_sigmas.append(ensemble_sigma)
-
-		ensemble_mus = np.squeeze(ensemble_mus, axis=-1)
-		ensemble_sigmas = np.squeeze(ensemble_sigmas, axis=-1)
-	if toy == '3d':
-		# 3D
-		print(ensemble_sigmas.shape)
-
-		fig = plt.figure()
-		ax = fig.add_subplot(111, projection='3d')
-		ax.set_zticks([], [])
-
-		ax.plot_wireframe(x1x1, x2x2, y_2d, rstride=1, cstride=1, alpha=0.3)
-		ax.scatter(x1, x2, y, s=16, c='red', zorder=2, zdir='z', depthshade=False)
-
-		ax.scatter(x1, graph_limits[1], y, s=8, c='black', zorder=2, zdir='z', depthshade=False)
-		ax.scatter(graph_limits[0], x2, y, s=8, c='black', zorder=2, zdir='z', depthshade=False)
-
-		# ax.plot(x_1d, y_1d, zs=-6, zdir='x', color='blue')
-		# ax.plot(x_1d, y_1d, zs=6, zdir='y', color='blue')
-
-		# ax.contourf(x1x1, x2x2, y_2d, zdir='x', offset=graph_limits[0], alpha=0.3, levels=0, colors='C0')
-		# ax.contourf(x1x1, x2x2, y_2d, zdir='y', offset=graph_limits[1], alpha=0.3, levels=0, colors='C0')
-
-		# ax.contourf(np.zeros_like(x1x1), x2x2, y_2d, zdir='x', offset=-6, alpha=0.3, levels=0, colors='C0')
-		# ax.contourf(x1x1, np.zeros_like(x2x2), y_2d, zdir='y', offset=6, alpha=0.3, levels=0, colors='C0')
-
-		ax.add_collection3d(plt.fill_between(x_1d, ensemble_mus-3*ensemble_sigmas[1],
-		 ensemble_mus+3*ensemble_sigmas[1], color='grey', alpha=0.3), zs=graph_limits[0], zdir='x')
-		ax.add_collection3d(plt.fill_between(x_1d, ensemble_mus-3*ensemble_sigmas[0], 
-			ensemble_mus+3*ensemble_sigmas[0], color='grey', alpha=0.3), zs=graph_limits[1], zdir='y')
-
-		ax.set_xlabel(r'$x_1$', fontsize=26)
-		ax.set_ylabel(r'$x_2$', fontsize=26)
-		ax.set_zlabel(r'$y$', fontsize=26)
-		if power == 3:
-			ax.set_title(r'$y=(x_1^3+\epsilon_1)(x_2^3+\epsilon_2)$', fontsize=26)
-		elif power == 4:
-			ax.set_title(r'$y=(x_1^4+\epsilon_1)(x_2^4+\epsilon_2)$', fontsize=26)
-
-		ax.set_xlim(graph_limits[0], graph_limits[1])
-		ax.set_ylim(graph_limits[0], graph_limits[1])
-		if power == 4:
-			ax.set_zlim(-50000, 400000)
-
-		ax.grid(False)
-
-	if toy == '2d':
-		plt.plot(x_1d, y_1d)
-		plt.scatter(x1, y, s=[6]*len(x1), c='r', zorder=1)
-		plt.fill_between(x_1d, np.squeeze(ensemble_mus-3*ensemble_sigmas[0]), 
-			np.squeeze(ensemble_mus+3*ensemble_sigmas[0]), color='grey', alpha=0.5)
-
-
-	plt.tight_layout(pad=0)
-	plt.savefig('toy_plots/{}.png'.format(config.model_dir.split('/')[-1]), dpi=300)
-
-def plot_calibration(X, y, config):
+def plot_defer_simulation(X, y, config):
 
 	ensemble_mus, ensemble_sigmas, true_values, _ = get_ensemble_predictions(X, y, ood=False, config=config)
 
@@ -185,19 +34,20 @@ def plot_calibration(X, y, config):
 		non_defered_rmse_list = non_defered_rmse_list[:-drop_n]
 		plt.plot(range(use_samples+1), non_defered_rmse_list, label='Cluster '+str(i+1), linewidth=3)
 		plt.legend(loc='lower left', fontsize=14)
-		plt.xlabel('No. of Datapoints Deferred', fontsize=26)
+		plt.xlabel('No. of Datapoints Deferred', fontsize=22)
 		plt.xticks(range(0, use_samples+1, (use_samples)//10))
-		plt.title(config.dataset.capitalize().replace('_',' ') + ' (hier. clust.)', fontsize=26)
+		plt.title(config.dataset.capitalize().replace('_',' ') + ' (hier. clust.)', fontsize=24)
 
 		if config.dataset == 'boston':
-			plt.title('Boston (hier. clust.)', fontsize=26)
-			plt.ylabel('Non-Deferred RMSE', fontsize=26)
+			plt.title('Boston (hier. clust.)', fontsize=22)
 		if config.dataset == 'energy_efficiency':
-			plt.title('Energy'+' (hier. clust.)', fontsize=26)
+			plt.title('Energy'+' (hier. clust.)', fontsize=22)
 		if config.dataset == 'cement':
-			plt.title('Concrete'+' (hier. clust.)', fontsize=26)
+			plt.title('Concrete'+' (hier. clust.)', fontsize=22)
 		if config.dataset == 'power_plant':
-			plt.title('Power'+' (hier. clust.)', fontsize=26)
+			plt.title('Power'+' (hier. clust.)', fontsize=22)
+
+	plt.ylabel('Non-Deferred RMSE', fontsize=22)
 
 	plt.tight_layout(pad=0.0)
 	plt.savefig(config.plot_name, dpi=300)
@@ -207,7 +57,7 @@ def plot_calibration(X, y, config):
 
 def plot_kl(X, y, config):
 
-	ensemble_mus, ensemble_sigmas, true_values, ensemble_entropies = get_ensemble_predictions(X, y, ood=0, config=config)
+	# ensemble_mus, ensemble_sigmas, true_values, ensemble_entropies = get_ensemble_predictions(X, y, ood=0, config=config)
 
 	fig, ax = plt.subplots()
 
@@ -230,7 +80,6 @@ def plot_kl(X, y, config):
 			entropy_mode_1.append(np.mean(bins[np.argmax(hist):np.argmax(hist)+2]))
 
 			x = np.linspace(mu - 3*sigma, mu + 3*sigma, 100)
-			plt.plot(x, stats.norm.pdf(x, mu, sigma), label='N({},{})'.format(mu, sigma**2))
 
 		np.save(config.plot_name.replace('.png', '_{}'.format(cluster_id)), np.stack((kl_1, entropy_mode_1), axis=-1))
 
@@ -247,9 +96,10 @@ def plot_kl(X, y, config):
 		plt.plot(kl_1, entropy_mode_1, label='Cluster '+str(cluster_id+1), linewidth=3)
 
 		plt.title(config.dataset.capitalize().replace('_',' ')+' (hier. clust.)', fontsize=26)
+		
+		plt.ylabel('Mode of KDE of Entropy', fontsize=26)
 
 		if config.dataset == 'boston':
-			plt.ylabel('Mode of KDE of Entropy', fontsize=26)
 			plt.title('Boston'+' (hier. clust.)', fontsize=26)
 
 		if config.dataset == 'energy_efficiency':
@@ -277,10 +127,13 @@ def plot_ood(X, y, config):
 		plot_alzheimers_ood(X, y, config)
 		return
 
-	ensemble_entropies = np.concatenate(np.load('entropy_plots/deep_ensemble/{}_val_entropy.npy'.format(config.dataset),
-		allow_pickle=True))
-	ensemble_entropies = np.squeeze(ensemble_entropies)
-	plot_ood_helper(ensemble_entropies, os.path.join(config.plot_name,'de.png'), config, deep_ensemble=True)
+	# ensemble_entropies = np.concatenate(np.load('plots/clusterwise_ood/deep_ensemble/{}_val_entropy.npy'.format(config.dataset),
+		# allow_pickle=True))
+	config.plot_name = config.plot_name.replace('.png', '')
+	os.makedirs(config.plot_name, exist_ok=True)
+
+	# ensemble_entropies = np.squeeze(ensemble_entropies)
+	# plot_ood_helper(ensemble_entropies, os.path.join(config.plot_name,'de.png'), config, deep_ensemble=True)
 
 	ensemble_mus, ensemble_sigmas, true_values, ensemble_entropies = get_ensemble_predictions(X, y, config=config, ood=0)
 	
@@ -345,16 +198,20 @@ def plot_ood_helper(ensemble_entropies, plot_name, config, deep_ensemble=False, 
 		plt.ylim(0,9)
 
 	if config.dataset == 'wine':
-		plt.ylim(0,8)
+		# plt.ylim(0,8)
+		plt.ylim(0,12)
 
 	if config.dataset == 'cement':
 		plt.ylim(0,7)
 
 	if config.dataset == 'power_plant':
-		plt.ylim(0,6)
+		# plt.ylim(0,6)
+		plt.ylim(0,10)
 
 	if config.dataset == 'kin8nm':
 		plt.ylim(0,5)
+		plt.xlim(-4,6)
+
 
 	if config.dataset == 'yacht':
 		plt.ylim(0,6)
@@ -412,6 +269,159 @@ def plot_alzheimers_ood_helper(ensemble_entropies, plot_name, config ,ood=0):
 	plt.clf()
 	plt.close()
 
+
+def plot_toy_regression(config):
+	config.units = 100
+	fold = 0
+	config.n_models = 5
+	config.epochs = 200
+	config.lr = 0.1
+	config.batch_size = 8
+	toy='3d'
+	graph_limits = [-5, 5]
+	x_limits = [-4, 4]
+
+	n_datapoints = 40
+	x_1d = np.linspace(graph_limits[0], graph_limits[1], num=n_datapoints)
+
+	x1 = np.random.uniform(x_limits[0], x_limits[1], size=(n_datapoints,1))
+	e1 = np.random.normal(loc=0, scale=3, size=(n_datapoints,1))
+
+	power = config.power
+
+	if toy == '3d':
+
+		x2 = np.random.uniform(x_limits[0], x_limits[1], size=(n_datapoints,1))
+		e2 = np.random.normal(loc=1, scale=2, size=(n_datapoints,1))
+
+		x = [x1, x2]
+
+		x1x1, x2x2 = np.meshgrid(range(graph_limits[0],graph_limits[1]+1), range(graph_limits[0],graph_limits[1]+1))
+		y_2d = np.power(x1x1, power) * np.power(x2x2, power)
+		y = (np.power(x1, power) + e1) * (np.power(x2, power) + e2)
+
+		y_2d = np.squeeze(y_2d)
+
+	elif toy == '2d':
+		x2 = np.random.uniform(x_limits[0], x_limits[1], size=(n_datapoints,1))
+		e2 = np.random.normal(loc=1, scale=2, size=(n_datapoints,1))
+
+		x = [x1, x2]
+		y = (np.power(x1, 4) + e1) * (np.power(x2, 4) + e2)
+		x_1d = np.expand_dims(x_1d, axis=-1)
+		y_1d = (np.power(x_1d, 3) + e1) 
+		y_1d = np.squeeze(y_1d)	
+
+	y = np.squeeze(y)
+
+	if config.build_model == 'gaussian':
+		x = np.squeeze(x)
+		x = np.transpose(x)
+		y = np.expand_dims(y, axis=-1)
+		print(x.shape)
+		print(y.shape)
+		mus, sigmas = [], []
+		for model_id in range(config.n_models):
+			model, _ = evaluator.train_a_fold(0, model_id, config, x, y, x, y)
+			model, _ = models.build_model(config)
+			model.build((None, 2))
+			model.load_weights(os.path.join(config.model_dir,'fold_{}_nll_{}.h5'.format(0, model_id)))
+			preds = model(np.stack([x_1d, x_1d], axis=-1))
+			mus.append(preds.mean().numpy())
+			sigmas.append(preds.stddev().numpy())
+
+		ensemble_mus = np.mean(mus, axis=0).reshape(-1,1)
+
+		ensemble_sigmas = np.sqrt(np.mean(np.square(sigmas) + np.square(ensemble_mus), axis=0).reshape(-1,1) - np.square(ensemble_mus))
+
+		ensemble_mus = np.squeeze(ensemble_mus, axis=-1)
+		ensemble_sigmas = np.squeeze(ensemble_sigmas, axis=-1)
+
+		ensemble_sigmas = np.stack((ensemble_sigmas, ensemble_sigmas), axis=0)
+
+	else:
+
+		config.n_feature_sets = len(x)
+		config.feature_split_lengths = [i.shape[1] for i in x]
+
+
+		model, _ = trainer.train_a_model(fold, 0, x, y, x, y, config)
+		trainer.train_deep_ensemble(x, y, x, y, fold, config, train=True)
+
+		mus, featurewise_sigmas = [], [[] for i in range(config.n_feature_sets)]
+		for model_id in range(config.n_models):
+			print(model_id)
+			model, _ = models.build_model(config)
+			model.load_weights(os.path.join(config.model_dir, 'fold_{}_nll_{}.h5'.format(fold, model_id)))
+
+			pred = model([x_1d, x_1d])
+			mus.append(pred[0].mean().numpy())
+			for i in range(config.n_feature_sets):
+				featurewise_sigmas[i].append(pred[i].stddev().numpy())
+
+		ensemble_mus = np.mean(mus, axis=0).reshape(-1,1)
+		ensemble_sigmas = []
+
+		for i in range(config.n_feature_sets):
+			ensemble_sigma = np.sqrt(np.mean(np.square(featurewise_sigmas[i]) + np.square(ensemble_mus), axis=0).reshape(-1,1) - np.square(ensemble_mus))
+			ensemble_sigmas.append(ensemble_sigma)
+
+		ensemble_mus = np.squeeze(ensemble_mus, axis=-1)
+		ensemble_sigmas = np.squeeze(ensemble_sigmas, axis=-1)
+	if toy == '3d':
+		# 3D
+		print(ensemble_sigmas.shape)
+
+		fig = plt.figure()
+		ax = fig.add_subplot(111, projection='3d')
+		ax.set_zticks([], [])
+
+		ax.plot_wireframe(x1x1, x2x2, y_2d, rstride=1, cstride=1, alpha=0.3)
+		ax.scatter(x1, x2, y, s=16, c='red', zorder=2, zdir='z', depthshade=False)
+
+		ax.scatter(x1, graph_limits[1], y, s=8, c='black', zorder=2, zdir='z', depthshade=False)
+		ax.scatter(graph_limits[0], x2, y, s=8, c='black', zorder=2, zdir='z', depthshade=False)
+
+		# ax.plot(x_1d, y_1d, zs=-6, zdir='x', color='blue')
+		# ax.plot(x_1d, y_1d, zs=6, zdir='y', color='blue')
+
+		# ax.contourf(x1x1, x2x2, y_2d, zdir='x', offset=graph_limits[0], alpha=0.3, levels=0, colors='C0')
+		# ax.contourf(x1x1, x2x2, y_2d, zdir='y', offset=graph_limits[1], alpha=0.3, levels=0, colors='C0')
+
+		# ax.contourf(np.zeros_like(x1x1), x2x2, y_2d, zdir='x', offset=-6, alpha=0.3, levels=0, colors='C0')
+		# ax.contourf(x1x1, np.zeros_like(x2x2), y_2d, zdir='y', offset=6, alpha=0.3, levels=0, colors='C0')
+
+		ax.add_collection3d(plt.fill_between(x_1d, ensemble_mus-3*ensemble_sigmas[1],
+		 ensemble_mus+3*ensemble_sigmas[1], color='grey', alpha=0.3), zs=graph_limits[0], zdir='x')
+		ax.add_collection3d(plt.fill_between(x_1d, ensemble_mus-3*ensemble_sigmas[0], 
+			ensemble_mus+3*ensemble_sigmas[0], color='grey', alpha=0.3), zs=graph_limits[1], zdir='y')
+
+		ax.set_xlabel(r'$x_1$', fontsize=26)
+		ax.set_ylabel(r'$x_2$', fontsize=26)
+		ax.set_zlabel(r'$y$', fontsize=26)
+		if power == 3:
+			ax.set_title(r'$y=(x_1^3+\epsilon_1)(x_2^3+\epsilon_2)$', fontsize=26)
+		elif power == 4:
+			ax.set_title(r'$y=(x_1^4+\epsilon_1)(x_2^4+\epsilon_2)$', fontsize=26)
+
+		ax.set_xlim(graph_limits[0], graph_limits[1])
+		ax.set_ylim(graph_limits[0], graph_limits[1])
+		if power == 4:
+			ax.set_zlim(-50000, 400000)
+
+		ax.grid(False)
+
+	if toy == '2d':
+		plt.plot(x_1d, y_1d)
+		plt.scatter(x1, y, s=[6]*len(x1), c='r', zorder=1)
+		plt.fill_between(x_1d, np.squeeze(ensemble_mus-3*ensemble_sigmas[0]), 
+			np.squeeze(ensemble_mus+3*ensemble_sigmas[0]), color='grey', alpha=0.5)
+
+
+	plt.tight_layout(pad=0)
+	plt.savefig(config.plot_name, dpi=300)
+
+
 def show_model_summary(X, y, config):
 
 	n_feature_sets = len(X)
@@ -420,6 +430,77 @@ def show_model_summary(X, y, config):
 	model.build((None,np.concatenate(X, axis=-1).shape[1]))
 	print(model.summary())
 
+def empirical_rule_test(X, y, config):
+	mus, sigmas, true_values, _ = get_ensemble_predictions(X, y, config=config)
+
+	thresholds = [0.12566, 0.25335, 0.38532, 0.52440, 0.67339, 0.84162, 1.03643, 1.28155, 1.64485]
+
+	for cluster_id in range(len(sigmas[0])):
+		print('Cluster {}'.format(cluster_id+1))
+		count_1 = 0
+		count_2 = 0
+		count_3 = 0
+		for i in range(len(mus)):
+			if np.abs(mus[i] - true_values[i])< sigmas[i,cluster_id]:
+				count_1+=1 
+			if np.abs(mus[i] - true_values[i])< 2*sigmas[i,cluster_id]:
+				count_2+=1 
+			if np.abs(mus[i] - true_values[i])< 3*sigmas[i,cluster_id]:
+				count_3+=1 
+
+		print('1 std - {} out of {} - {:.3}%'.format(count_1, len(mus), (count_1*100/len(mus))))
+		print('2 std - {} out of {} - {:.3}%'.format(count_2, len(mus), (count_2*100/len(mus))))
+		print('3 std - {} out of {} - {:.3}%'.format(count_3, len(mus), (count_3*100/len(mus))))
+
+	values = [[] for i in range(len(sigmas[0]))]
+	threshold_values = [10, 20, 30, 40, 50, 60, 70, 80, 90]
+
+	fig, ax = plt.subplots()
+	ideal = [i for i in range(10,100,10)]
+
+	plt.plot(ideal, ideal, label='Ideal Calibration', linewidth=2, color='black', linestyle=':')
+
+
+	for cluster_id in range(len(sigmas[0])):
+		print('Cluster {}'.format(cluster_id+1))
+		for t in thresholds:
+			count = 0
+			for i in range(len(mus)):
+				if np.abs(mus[i] - true_values[i])< t* sigmas[i,cluster_id]:
+					count+=1 
+			values[cluster_id].append(count)
+
+		values[cluster_id] = np.array(values[cluster_id])*100/len(mus)
+		plt.scatter(threshold_values, values[cluster_id], s=96)
+		plt.plot(threshold_values, values[cluster_id], label='Cluster '+str(cluster_id+1), linewidth=3)
+
+		plt.title(config.dataset.capitalize().replace('_',' ')+' (hier. clust.)', fontsize=26)
+		
+		plt.ylabel('% of True Values inside Interval', fontsize=20)
+
+		if config.dataset == 'boston':
+			plt.title('Boston'+' (hier. clust.)', fontsize=26)
+
+		if config.dataset == 'energy_efficiency':
+			plt.title('Energy'+' (hier. clust.)', fontsize=26)
+		if config.dataset == 'cement':
+			plt.title('Concrete'+' (hier. clust.)', fontsize=26)
+
+		if config.dataset == 'power_plant':
+			plt.title('Power'+' (hier. clust.)', fontsize=26)
+
+		plt.xlabel('% of Prediction Interval around Mean', fontsize=20)
+
+
+	plt.xticks(range(10, 100, 10))
+	plt.yticks(range(10, 100, 10))
+	ax.tick_params(axis="x", labelsize=18)
+	ax.tick_params(axis="y", labelsize=18)
+	plt.legend(fontsize=16, loc='lower right')
+	plt.tight_layout(pad=0)
+	plt.savefig(config.plot_name, dpi=300)
+	plt.clf()
+	plt.close()
 
 def get_ensemble_predictions(X, y, ood=False, config=None, ood_loc=0, ood_scale=1, ood_cluster_id=0,
  alzheimers_test_data=None):
@@ -428,7 +509,6 @@ def get_ensemble_predictions(X, y, ood=False, config=None, ood_loc=0, ood_scale=
 	all_mus, all_sigmas, true_values, all_entropies, all_rmses = [], [], [], [], []
 	n_feature_sets = len(X)
 	for train_index, test_index in kf.split(y):
-		print('Fold ', fold)
 		y_train, y_val = y[train_index], y[test_index]
 		x_train = [i[train_index] for i in X]
 		x_val = [i[test_index] for i in X]
@@ -450,14 +530,14 @@ def get_ensemble_predictions(X, y, ood=False, config=None, ood_loc=0, ood_scale=
 				x_train[i], x_val[i] = utils.standard_scale(x_train[i], x_val[i])
 
 		if ood == 1:
-			x_val[0][:,2] = np.random.normal(loc=6, scale=2, size=x_val[0][:,0].shape)
+			x_val[0][:,0] = np.random.normal(loc=6, scale=2, size=x_val[0][:,0].shape)
 		if ood == 2:
-			x_val[1][:,2] = np.random.normal(loc=6, scale=2, size=x_val[1][:,0].shape)
+			x_val[1][:,0] = np.random.normal(loc=6, scale=2, size=x_val[1][:,0].shape)
 		if ood == 3:
-			x_val[0][:,2] = np.random.normal(loc=6, scale=2, size=x_val[0][:,0].shape)
-			x_val[1][:,2] = np.random.normal(loc=12, scale=1, size=x_val[1][:,0].shape)
+			x_val[0][:,0] = np.random.normal(loc=6, scale=2, size=x_val[0][:,0].shape)
+			x_val[1][:,0] = np.random.normal(loc=12, scale=1, size=x_val[1][:,0].shape)
 		if ood == 100:
-			x_val[ood_cluster_id][:,0] = np.random.normal(loc=ood_loc, scale=ood_scale, size=x_val[ood_cluster_id][:,0].shape)
+			x_val[ood_cluster_id][:,1] = np.random.normal(loc=ood_loc, scale=ood_scale, size=x_val[ood_cluster_id][:,0].shape)
 
 		mus = []
 		featurewise_entropies = [[] for i in range(n_feature_sets)]
@@ -507,9 +587,14 @@ def get_ensemble_predictions(X, y, ood=False, config=None, ood_loc=0, ood_scale=
 		fold+=1
 		val_rmse = mean_squared_error(y_val, ensemble_mus, squared=False)
 		all_rmses.append(val_rmse)
-		print('Val RMSE: {:.3f}'.format(val_rmse))
+		if config.verbose > 0:
+			print('Fold ', fold-1)
+			print('Val RMSE: {:.3f}'.format(val_rmse))
 
 		if config.dataset == 'msd' or 'alzheimers' in config.dataset:
+			break
+
+		if config.dataset == 'naval' and fold == 6:
 			break
 
 	all_mus = np.reshape(all_mus, (-1,1))

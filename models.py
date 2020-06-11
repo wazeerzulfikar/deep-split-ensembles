@@ -1,3 +1,5 @@
+import math
+
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import *
 import tensorflow_probability as tfp
@@ -41,7 +43,6 @@ def create_multivariate_gaussian_output(mus, stddevs, name):
 	return x
 
 def build_model(config):
-
 	if config.build_model=='point':
 		loss = tf.keras.losses.mean_squared_error
 		model = Sequential()
@@ -51,7 +52,7 @@ def build_model(config):
 			model.add(Dense(50, activation='relu'))
 		model.add(Dense(1))
 
-	if config.build_model=='gaussian':
+	elif config.build_model=='gaussian':
 		loss = lambda y, p_y: -p_y.log_prob(y)
 		model = Sequential()
 		if config.dataset=='protein' or config.dataset=='msd':
@@ -61,7 +62,7 @@ def build_model(config):
 		model.add(Dense(2, dtype='float64'))
 		model.add(tfp.layers.DistributionLambda(lambda t: tfd.Normal(loc=t[..., :1], scale=tf.math.softplus(t[..., 1:])+1e-6), dtype='float64'))
 		
-	if config.build_model=='combined_pog':
+	elif config.build_model=='combined_pog':
 		loss = lambda y, p_y: -p_y.log_prob(y)
 
 		n_feature_sets = len(config.feature_split_lengths)
@@ -75,7 +76,6 @@ def build_model(config):
 			if config.units_type == 'absolute':
 				units = config.units
 			elif config.units_type == 'prorated':
-				print(config.feature_split_lengths[i] * config.units / sum(config.feature_split_lengths))
 				units = math.floor(config.feature_split_lengths[i] * config.units / sum(config.feature_split_lengths) )
 			feature_extractors.append(create_feature_extractor_block(inputs[i], units = units))
 
@@ -91,7 +91,7 @@ def build_model(config):
 
 		model = tf.keras.models.Model(inputs=inputs, outputs=outputs)
 
-	if config.build_model=='combined_multivariate':
+	elif config.build_model=='combined_multivariate':
 		loss = lambda y, p_y: -p_y.log_prob(y)
 
 		n_feature_sets = len(config.feature_split_lengths)
@@ -119,9 +119,12 @@ def build_model(config):
 
 		model = tf.keras.models.Model(inputs=inputs, outputs=outputs)
 
-	if 'alzheimers' in config.dataset:
+	elif 'alzheimers' in config.dataset:
 		model = alzheimers_model()
 		loss = lambda y, p_y: -p_y.log_prob(y)
+
+	else:
+		raise Exception('{} model type not available'.format(config.build_model))
 
 	return model, loss
 

@@ -69,6 +69,7 @@ def feature_as_a_cluster(config, features):
 
 def load_dataset(config):
     np.random.seed(0)
+
     if config.dataset=='boston':
         data = _boston(config)        
 
@@ -107,6 +108,20 @@ def load_dataset(config):
 
     elif 'alzheimers_test' in config.dataset:
         data = _alzheimers_test(config)
+
+    elif config.dataset == 'toy':
+        x_limits = [-4, 4]
+
+        n_datapoints = 40
+        x1 = np.random.uniform(x_limits[0], x_limits[1], size=(n_datapoints,1))
+        e1 = np.random.normal(loc=0, scale=3, size=(n_datapoints,1))
+        x2 = np.random.uniform(x_limits[0], x_limits[1], size=(n_datapoints,1))
+        e2 = np.random.normal(loc=1, scale=2, size=(n_datapoints,1))
+
+        y = (np.power(x1, config.power) + e1) * (np.power(x2, config.power) + e2)
+
+
+        data = {'0': x1, '1': x2, 'y': y} #Simulated later
 
     return data
 
