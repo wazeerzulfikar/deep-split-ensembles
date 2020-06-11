@@ -1,4 +1,9 @@
+import sys
 import os
+import inspect
+currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+parentdir = os.path.dirname(currentdir)
+sys.path.insert(0,parentdir)
 import numpy as np
 np.random.seed(0)
 
@@ -116,8 +121,8 @@ if config.dataset in ['life']:
 elif config.dataset in ['life_test']:
 	life_trainer.evaluate(X, y, config)
 
-# train 
-# python life_trainer.py train --datasets_dir datasets --dataset life --model_dir life_hc --n_models 1 --epochs 1000 --build_model point --units_type absolute --mixture_approximation none
+#train
+# python extras/life_trainer.py train --datasets_dir datasets --dataset life --model_dir life_hc --n_models 1 --epochs 1000 --build_model point --units_type absolute --mixture_approximation none
 
 # evaluate n the missing features
-# python life_trainer.py evaluate --datasets_dir datasets --dataset life_test --model_dir life_hc --n_models 1  --build_model point --units_type absolute --mixture_approximation none
+# python extras/life_trainer.py evaluate --datasets_dir datasets --dataset life_test --model_dir life_hc --n_models 1  --build_model point --units_type absolute --mixture_approximation none
