@@ -11,6 +11,8 @@ from sklearn.metrics import mean_squared_error
 import models
 import dataset
 import utils
+# import mc_dropout 
+
 from alzheimers import utils as alzheimers_utils
 
 tfd = tfp.distributions
@@ -94,7 +96,7 @@ def train_a_model(
 						callbacks=[checkpointer],
 						validation_data=(x_val, [y_val]*len(x_train)))
 
-	elif config.build_model == 'combined_multivariate':
+	elif config.build_model == 'combined_multivariate' or config.build_model == 'gaussian':
 		model.compile(optimizer=tf.optimizers.Adam(learning_rate=config.lr),
 					  loss=[negloglik])
 		hist = model.fit(x_train, y_train,
@@ -103,6 +105,7 @@ def train_a_model(
 						verbose=config.verbose,
 						callbacks=[checkpointer],
 						validation_data=(x_val, y_val))
+
 
 	epoch_val_losses = hist.history['val_loss']
 	best_epoch_val_loss, best_epoch = np.min(epoch_val_losses), np.argmin(epoch_val_losses)+1
@@ -123,33 +126,66 @@ def train_deep_ensemble(x_train, y_train, x_val, y_val, fold, config, train=Fals
 	train_nlls, val_nlls = [], []
 	mus = []
 	featurewise_sigmas = [[] for i in range(n_feature_sets)]
-	ensemble_preds = []
+	# ensemble_preds = []
 
 	for model_id in range(config.n_models):
 
 		if train:
-			model, results = train_a_model(model_id, fold, x_train, y_train, x_val, y_val, config)
-			train_nlls.append(results[0])
-			val_nlls.append(results[1])
+			if config.build_model == 'gaussian' and config.mod_split != 'none':
+				gaussian_split_models = []
+				for i in range(config.n_feature_sets):
+					new_model_id = str(model_id)+'_'+str(i)
+					config.input_feature_length = config.feature_split_lengths[i]
+					model, results = train_a_model(new_model_id, fold, x_train[i], y_train, x_val[i], y_val, config)
+					gaussian_split_models.append(model)
+			else:
+				model, results = train_a_model(model_id, fold, x_train, y_train, x_val, y_val, config)
+				train_nlls.append(results[0])
+				val_nlls.append(results[1])
 		else:
-			model, _ = models.build_model(config)
-			model.load_weights(os.path.join(config.model_dir, 'fold_{}_nll_{}.h5'.format(fold, model_id)))
+			if config.build_model == 'gaussian' and config.mod_split != 'none':
+				gaussian_split_models = []
+				for i in range(config.n_feature_sets):
+					config.input_feature_length = config.feature_split_lengths[i]
+					new_model_id = str(model_id)+'_'+str(i)
+					model, _ = models.build_model(config)
+					model.load_weights(os.path.join(config.model_dir, 'fold_{}_nll_{}.h5'.format(fold, new_model_id)))
+					gaussian_split_models.append(model)
+			else:
+				model, _ = models.build_model(config)
+				model.load_weights(os.path.join(config.model_dir, 'fold_{}_nll_{}.h5'.format(fold, model_id)))
+
 
 		y_val = y_val.reshape(-1,1)
-		preds = model(x_val)
-		# print(preds.shape)
 
-		ensemble_preds.append(preds)
-		if config.build_model == 'combined_multivariate':
+		if config.build_model == 'gaussian' and config.mod_split != 'none':
+			gaussian_split_preds = []
+			# print(x_val[0].shape)
+			# exit()
+			for i in range(config.n_feature_sets):
+				gaussian_split_preds.append(gaussian_split_models[i](x_val[i]))
+		else:
+			preds = model(x_val)
+
+
+		# ensemble_preds.append(preds)
+		if config.build_model == 'gaussian' and config.mod_split != 'none':
+			mu = [gaussian_split_preds[i].mean().numpy()[:,0] for i in range(config.n_feature_sets)]
+			mu = np.sum(mu, axis=0) / config.n_feature_sets
+			mus.append(mu)
+		elif config.build_model == 'combined_multivariate' or config.build_model=='gaussian':
 			mus.append(preds.mean().numpy()[:,0])
 		elif config.build_model == 'combined_pog':
 			mus.append(preds[0].mean().numpy())
 
 		for i in range(n_feature_sets):
-			if config.build_model == 'combined_multivariate':
+			if config.build_model == 'gaussian' and config.mod_split != 'none':
+				featurewise_sigmas[i].append(gaussian_split_preds[i].stddev().numpy())
+			elif config.build_model == 'combined_multivariate' or config.build_model == 'gaussian':
 				featurewise_sigmas[i].append(preds.stddev().numpy()[:,i:i+1])
 			elif config.build_model == 'combined_pog':
 				featurewise_sigmas[i].append(preds[i].stddev().numpy())
+
 
 		val_rmse = mean_squared_error(y_val,mus[model_id], squared=False)
 		print('Val RMSE: {:.3f}'.format(val_rmse))

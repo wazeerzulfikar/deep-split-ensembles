@@ -54,14 +54,16 @@ def build_model(config):
 
 	elif config.build_model=='gaussian':
 		loss = lambda y, p_y: -p_y.log_prob(y)
-		model = Sequential()
+		input = Input((config.input_feature_length,))
 		if config.dataset=='protein' or config.dataset=='msd':
-			model.add(Dense(100, activation='relu', dtype='float64'))
+			x = Dense(100, activation='relu', dtype='float32')(input)
 		else:
-			model.add(Dense(50, activation='relu', dtype='float64') )
-		model.add(Dense(2, dtype='float64'))
-		model.add(tfp.layers.DistributionLambda(lambda t: tfd.Normal(loc=t[..., :1], scale=tf.math.softplus(t[..., 1:])+1e-6), dtype='float64'))
+			x = Dense(50, activation='relu', dtype='float32')(input)
+		x = Dense(2, dtype='float32')(x)
+		output = tfp.layers.DistributionLambda(lambda t: tfd.Normal(loc=t[..., :1], scale=tf.math.softplus(t[..., 1:])+1e-6), dtype='float32')(x)
 		
+		model = tf.keras.models.Model(inputs=input, outputs=output)
+
 	elif config.build_model=='combined_pog':
 		loss = lambda y, p_y: -p_y.log_prob(y)
 
