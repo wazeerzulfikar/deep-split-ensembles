@@ -13,7 +13,9 @@ import dataset
 import utils
 import mc_dropout 
 
-from alzheimers import alz_utils as alzheimers_utils
+# from alzheimers import alz_utils as alzheimers_utils
+
+from anc_ens import anc_ens, hyperparameters, utils as anc_utils, DataGen
 
 tfd = tfp.distributions
 
@@ -37,7 +39,7 @@ def run_all_folds(X, y, train, config):
 			train_index = [x for x in range(463715)]
 			test_index = [x for x in range(463715, 515345)]
 
-		y_train, y_val = y[train_index], y[test_index]
+		y_train, y_val = np.expand_dims(y[train_index], -1), np.expand_dims(y[test_index], -1)
 		x_train = [i[train_index] for i in X]
 		x_val = [i[test_index] for i in X]
 		if config.dataset in ['alzheimers_test']:
@@ -58,22 +60,92 @@ def run_all_folds(X, y, train, config):
 		if config.build_model == 'gaussian' and config.mod_split != 'none':
 			rmse, nll, cluster_rmse = train_deep_ensemble(x_train, y_train, x_val, y_val, fold, config, train=train, verbose=config.verbose)
 			all_clusterwise_rmses.append(cluster_rmse)
+		elif config.build_model == 'anc_ens':
+			hyp = hyperparameters.get_hyperparams(config.dataset, 
+														  config.units)
+			model_name = os.path.join(config.model_dir, '_ancens_fold_{}'.format(fold))
+			
+			# Gen = DataGen.DataGenerator(type_in='~'+config.dataset)
+			# x_train, y_train, x_val, y_val = Gen.CreateData(n_samples=0, seed_in=fold+1000, 
+			# 	train_prop=0.8)
+	
+			# x_train = [x_train]
+			# x_val = [x_val]
+
+			fold_rmses, fold_nlls = [], []
+			flag=0
+			for i in range(n_feature_sets):
+				ens = anc_ens.NN_ens(activation_fn='relu', 
+									data_noise=hyp['data_noise'],
+									b_0_var=hyp['b_0_var'], w_0_var=hyp['w_0_var'], u_var=1.0, g_var=1,
+									optimiser_in=hyp['optimiser_in'], 
+									learning_rate=hyp['learning_rate'], 
+									hidden_size=config.units, 
+									n_epochs=hyp['n_epochs'], 
+									cycle_print=hyp['cycle_print'], 
+									n_ensembles=config.n_models,
+									total_trained=0,
+									batch_size=hyp['batch_size'],
+									decay_rate=hyp['decay_rate'],
+									model_name=model_name+'_featureset_{}'.format(i)
+									)
+				print("Feature i shapes : {}, {}, {}, {}".format(np.asarray(x_train[i]).shape, np.expand_dims(np.asarray(y_train), -1).shape, np.asarray(x_val[i]).shape, np.expand_dims(np.asarray(y_val), -1).shape))
+				y_priors, y_prior_mu, y_prior_std = ens.train(np.asarray(x_train[i]), np.asarray(y_train), np.asarray(x_val[i]), np.asarray(y_val), is_print=True)
+				# plot priors
+				# if False:
+				# 	if is_try_plot: try_plot(X_dim, X_grid, y_prior_mu, y_prior_std, X_train, y_train, ens, y_priors)
+				y_preds, _mu, _std = ens.predict(np.asarray(x_val[i]))
+				print("Shape of preds : {}".format(np.asarray(y_preds).shape))
+				
+				if not flag:
+					ensemble_y_preds = y_preds.copy() # shape (n_models, val data points)
+					flag=1
+				else:
+					ensemble_y_preds = ensemble_y_preds + y_preds # taking mean across feature sets
+				
+				y_pred_mu = np.atleast_2d(np.mean(y_preds,axis=0)).T
+				y_pred_std = np.atleast_2d(np.std(y_preds,axis=0, ddof=1)).T
+				y_pred_std = np.sqrt(np.square(y_pred_std) + hyp['data_noise'])
+
+				anc_utils.metrics_calc(y_val, y_pred_mu, y_pred_std, 1.0, hyp['b_0_var'], hyp['w_0_var'], hyp['data_noise'], ens, is_print=True)
+				print("Fold {}, feature set {}, rmse {}, nll {}".format(fold, i, ens.rmse, ens.nll))
+				fold_rmses.append(ens.rmse)
+				fold_nlls.append(ens.nll) # shape (n_feature_sets, 1) : holds an nll for the model trained on each feature cluster
+				# should this be used instead?
+
+			ensemble_y_preds_mu = ensemble_y_preds/n_feature_sets # take average across the clusters since we were just adding before
+			ensemble_y_preds_std = np.atleast_2d(np.std(ensemble_y_preds_mu,axis=0, ddof=1)).T
+				
+			final_model_rmse, final_model_nll = [], []
+			for i in range(n_feature_sets):
+				anc_utils.metrics_calc(y_val, ensemble_y_preds_mu[i], ensemble_y_preds_std, 1.0, hyp['b_0_var'], hyp['w_0_var'], hyp['data_noise'], ens, is_print=True)
+				final_model_rmse.append(ens.rmse)
+				final_model_nll.append(ens.nll)
+
+			print("\nFold {}, rmse {} +/- {}, nlls {} +/- {}".format(fold, np.mean(final_model_rmse), np.std(final_model_rmse), np.mean(final_model_nll), np.std(final_model_nll)))
+			print("rmses {}, nlls {}".format(fold_rmses, fold_nlls))
+			all_rmses.append(np.mean(final_model_rmse))
+			all_nlls.append(np.mean(final_model_nll))
+			
+			fold+=1
+			print('='*20)
+			continue
 		else:
 			rmse, nll = train_deep_ensemble(x_train, y_train, x_val, y_val, fold, config, train=train, verbose=config.verbose)
 		all_rmses.append(rmse)
 		all_nlls.append(nll)
 		fold+=1
 		print('='*20)
-
 		if config.dataset in ['msd', 'alzheimers', 'alzheimers_test']:
 			break
 
 	print('Final {} fold results'.format(config.n_folds))
 	print('val rmse {:.3f}, +/- {:.3f}'.format(np.mean(all_rmses), np.std(all_rmses)))
-	[print('feature set {}, val nll {:.3f}, +/- {:.3f}'.format(i, np.mean(all_nlls, axis=0)[i], np.std(all_nlls, axis=0)[i]))
-	 for i in range(n_feature_sets)]
-	print(['{:.3f} {:.3f}'.format(np.mean(all_nlls, axis=0)[i], np.std(all_nlls, axis=0)[i]) 
-		for i in range(n_feature_sets)])
+	if config.build_model=='anc_ens':
+		print('val nll {:.3f}, +/- {:.3f}'.format(np.mean(all_nlls), np.std(all_nlls)))	
+	else:
+		[print('feature set {}, val nll {:.3f}, +/- {:.3f}'.format(i, np.mean(all_nlls, axis=0)[i], np.std(all_nlls, axis=0)[i])) for i in range(n_feature_sets)]
+		print(['{:.3f} {:.3f}'.format(np.mean(all_nlls, axis=0)[i], np.std(all_nlls, axis=0)[i]) for i in range(n_feature_sets)])
 
 	if config.build_model == 'gaussian' and config.mod_split != 'none':
 		[print('feature set {}, val rmse {:.3f}, +/- {:.3f}'.format(i, np.mean(all_clusterwise_rmses, axis=0)[i], np.std(all_nlls, axis=0)[i]))
@@ -89,7 +161,7 @@ def train_a_model(
 			normalize=False, verbose=config.verbose, model_dir=config.model_dir, fold=fold, model_id=model_id,
 			x_val=x_val, y_val=y_val)
 		mc_rmse, nll = model.predict(np.array(x_train[0]), y_train)
-		return model, [nll, nll]
+		return model, [nll, nll]	
 	else:
 
 		model,_ = models.build_model(config)
