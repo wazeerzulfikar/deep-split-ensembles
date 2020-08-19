@@ -14,7 +14,7 @@ import trainer
 import dataset
 import utils
 from extras import evaluator
-from alzheimers import utils as alzheimers_utils
+from alzheimers import alz_utils as alzheimers_utils
 
 tfd = tfp.distributions
 
@@ -196,7 +196,7 @@ def plot_ood_helper(ensemble_entropies, plot_name, config, deep_ensemble=False, 
 	plt.xlim(0,6)
 
 	if config.dataset == 'boston':
-		plt.ylim(0,3)
+		plt.ylim(0,4)
 
 	if config.dataset == 'energy_efficiency':
 		plt.ylim(0,9)
@@ -374,7 +374,6 @@ def plot_toy_regression(config):
 		ensemble_sigmas = np.squeeze(ensemble_sigmas, axis=-1)
 	if toy == '3d':
 		# 3D
-		print(ensemble_sigmas.shape)
 
 		fig = plt.figure()
 		ax = fig.add_subplot(111, projection='3d')
@@ -511,6 +510,7 @@ def get_ensemble_predictions(X, y, ood=False, config=None, ood_loc=0, ood_scale=
 	kf = KFold(n_splits=config.n_folds, shuffle=True, random_state=42)
 	fold = 1
 	all_mus, all_sigmas, true_values, all_entropies, all_rmses = [], [], [], [], []
+	gaussian_split_mus = []
 	n_feature_sets = len(X)
 	for train_index, test_index in kf.split(y):
 		y_train, y_val = y[train_index], y[test_index]
@@ -547,11 +547,25 @@ def get_ensemble_predictions(X, y, ood=False, config=None, ood_loc=0, ood_scale=
 		featurewise_entropies = [[] for i in range(n_feature_sets)]
 		featurewise_sigmas = [[] for i in range(n_feature_sets)]
 		for model_id in range(config.n_models):
-			if config.build_model=='gaussian':
+			if config.build_model == 'gaussian' and config.mod_split == 'none':
 				model, _ = models.build_model(config)
 				model.build((None,x_train[0].shape[1]))
 				model.load_weights(os.path.join(config.model_dir, 'fold_{}_model_{}.h5'.format(fold, model_id+1)))
 				preds = model(x_val[0])
+
+			elif config.build_model == 'gaussian' and config.mod_split != 'none':
+				gaussian_split_models = []
+				for i in range(config.n_feature_sets):
+					config.input_feature_length = config.feature_split_lengths[i]
+					new_model_id = str(model_id)+'_'+str(i)
+					model, _ = models.build_model(config)
+					model.load_weights(os.path.join(config.model_dir, 'fold_{}_nll_{}.h5'.format(fold, new_model_id)))
+					gaussian_split_models.append(model)
+
+				gaussian_split_preds = []
+				for i in range(config.n_feature_sets):
+					gaussian_split_preds.append(gaussian_split_models[i](x_val[i]))
+
 			else:
 
 				model, _ = models.build_model(config)
@@ -561,13 +575,24 @@ def get_ensemble_predictions(X, y, ood=False, config=None, ood_loc=0, ood_scale=
 
 			y_val = y_val.reshape(-1,1)
 
-			if config.build_model in ['combined_multivariate', 'gaussian']:
+			if config.build_model == 'gaussian' and config.mod_split != 'none':
+				mu = [gaussian_split_preds[i].mean().numpy()[:,0] for i in range(config.n_feature_sets)]
+				gaussian_split_mus.append(mu)
+				mu = np.sum(mu, axis=0) / config.n_feature_sets
+				mus.append(mu)
+
+			elif config.build_model in ['combined_multivariate', 'gaussian']:
 				mus.append(preds.mean().numpy()[:,0])
+
 			elif config.build_model == 'combined_pog':
 				mus.append(preds[0].mean().numpy())
 
 			for i in range(n_feature_sets):
-				if config.build_model in ['combined_multivariate', 'gaussian']:
+				if config.build_model == 'gaussian' and config.mod_split != 'none':
+					featurewise_sigmas[i].append(gaussian_split_preds[i].stddev().numpy())
+					featurewise_entropies[i].append(gaussian_split_preds[i].entropy().numpy())
+
+				elif config.build_model in ['combined_multivariate', 'gaussian']:
 					featurewise_sigmas[i].append(preds.stddev().numpy()[:,i:i+1])
 					featurewise_entropies[i].append(preds.entropy().numpy())
 

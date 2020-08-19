@@ -52,7 +52,7 @@ def build_model(config):
 			model.add(Dense(50, activation='relu'))
 		model.add(Dense(1))
 
-	elif config.build_model=='gaussian':
+	elif config.build_model=='gaussian' and config.dataset!='alzheimers':
 		loss = lambda y, p_y: -p_y.log_prob(y)
 		input = Input((config.input_feature_length,))
 		if config.dataset=='protein' or config.dataset=='msd':
@@ -122,7 +122,10 @@ def build_model(config):
 		model = tf.keras.models.Model(inputs=inputs, outputs=outputs)
 
 	elif 'alzheimers' in config.dataset:
-		model = alzheimers_model()
+		if config.build_model == 'gaussian':
+			model = gaussian_alzheimers_model()
+		else:
+			model = alzheimers_model()
 		loss = lambda y, p_y: -p_y.log_prob(y)
 
 	else:
@@ -185,3 +188,46 @@ def alzheimers_model():
 
 	return tf.keras.models.Model(inputs=[intervention_inputs, pause_inputs, compare_inputs],
 	 outputs=[intervention_output, pause_output, compare_output])
+
+def gaussian_alzheimers_model():
+	intervention_inputs = Input((32, 3))
+	pause_inputs = Input((11,))
+	compare_inputs = Input((21,))
+
+	intervention_x = LSTM(16)(intervention_inputs)
+	intervention_x = BatchNormalization()(intervention_x)
+
+	intervention_x = Dense(16, activation='relu')(intervention_x)
+	intervention_x = BatchNormalization()(intervention_x)
+	intervention_x = Dense(8, activation='relu')(intervention_x)
+	intervention_x = BatchNormalization()(intervention_x)
+	# intervention_x = Dropout(0.2)(intervention_x)
+
+	pause_x = Dense(24, activation='relu')(pause_inputs)
+	pause_x = BatchNormalization()(pause_x)
+	pause_x = Dense(16, activation='relu')(pause_x)
+	pause_x = BatchNormalization()(pause_x)
+	pause_x = Dense(16, activation='relu')(pause_x)
+	pause_x = BatchNormalization()(pause_x)
+	pause_x = Dense(8, activation='relu')(pause_x)
+	pause_x = BatchNormalization()(pause_x)
+	# pause_x = Dropout(0.2)(pause_x)
+
+	compare_x = Dense(24, activation='relu')(compare_inputs)
+	compare_x = BatchNormalization()(compare_x)
+	compare_x = Dense(16, activation='relu')(compare_x)
+	compare_x = BatchNormalization()(compare_x)
+	compare_x = Dense(16, activation='relu')(compare_x)
+	compare_x = BatchNormalization()(compare_x)
+	compare_x = Dense(8, activation='relu')(compare_x)
+	compare_x = BatchNormalization()(compare_x)
+	# compare_x = Dropout(0.2)(compare_x)
+
+	mu_var = Concatenate()([intervention_x, pause_x, compare_x])
+	# mu = Dense(8, activation='relu')(mu)
+	# mu = BatchNormalization()(mu)
+	mu_var = Dense(2, kernel_regularizer=tf.keras.regularizers.l2(0.01), activity_regularizer=tf.keras.regularizers.l1(0.01))(mu_var)
+	output = tfp.layers.DistributionLambda(lambda t: tfd.Normal(loc=t[..., :1], scale=tf.math.softplus(t[..., 1:])+1e-6), dtype='float32')(mu_var)
+
+	return tf.keras.models.Model(inputs=[intervention_inputs, pause_inputs, compare_inputs],
+	 outputs=[output])

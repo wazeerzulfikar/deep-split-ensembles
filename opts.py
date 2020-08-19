@@ -29,6 +29,7 @@ class Opts:
 		self.parser_train.add_argument('--units_type', default='prorated', help='Split units proportionately')
 		self.parser_train.add_argument('--mod_split', default='computation_split', help='computation_split | human | none')
 		self.parser_train.add_argument('--mixture_approximation', default='gaussian', help='gaussian | none')
+		self.parser_train.add_argument('--select_gender', default='all', help='For alzheimers')
 
 		self.parser_train.add_argument('--verbose', type=int, default=1)
 
@@ -47,6 +48,7 @@ class Opts:
 		self.parser_evaluate.add_argument('--units_type', default='prorated', help='Split units proportionately')
 		self.parser_evaluate.add_argument('--mod_split', default='computation_split', help='computation_split | human | none')
 		self.parser_evaluate.add_argument('--mixture_approximation', default='gaussian', help='gaussian | none')
+		self.parser_evaluate.add_argument('--select_gender', default='all', help='For alzheimers')
 
 		self.parser_evaluate.add_argument('--verbose', default=0)
 

@@ -16,20 +16,20 @@ from sklearn.model_selection import KFold
 from sklearn.metrics import accuracy_score
 from sklearn.linear_model import LogisticRegression
 
-import utils
+from alzheimers import alz_utils
 
 	
 def get_pause_features(transcription_filename, audio_filename, audio_length_normalization=10):
     '''
     Pause features include word rate, pause rate of various kinds of pauses and utterances, and intervention rate
     '''
-    audio_len =  utils.get_audio_length(audio_filename)/audio_length_normalization
+    audio_len =  alz_utils.get_audio_length(audio_filename)/audio_length_normalization
 
     with open(transcription_filename, 'r') as f:
         content = f.read()
-        word_rate = utils.words_count(content) / (50 * audio_len)
-        pause_rates = utils.get_pauses_cnt(content) / audio_len
-        inv_rate = utils.get_n_interventions(content) / audio_len
+        word_rate = alz_utils.words_count(content) / (50 * audio_len)
+        pause_rates = alz_utils.get_pauses_cnt(content) / audio_len
+        inv_rate = alz_utils.get_n_interventions(content) / audio_len
 
     pause_features = np.concatenate(([inv_rate], pause_rates, [word_rate]), axis=-1)
 
@@ -137,8 +137,8 @@ def prepare_data(config, select_gender=None):
 	y_intervention = np.concatenate((y_cc, y_cd), axis=0).astype(np.float32)
 	filenames_intervention = np.concatenate((cc_files, cd_files), axis=0)
 
-	y_reg_cc = utils.get_regression_values(os.path.join(dataset_dir, 'cc_meta_data.txt'))
-	y_reg_cd = utils.get_regression_values(os.path.join(dataset_dir, 'cd_meta_data.txt'))
+	y_reg_cc = alz_utils.get_regression_values(os.path.join(dataset_dir, 'cc_meta_data.txt'))
+	y_reg_cd = alz_utils.get_regression_values(os.path.join(dataset_dir, 'cd_meta_data.txt'))
 
 	y_reg_intervention = np.concatenate((y_reg_cc, y_reg_cd), axis=0).astype(np.float32)
 	X_reg_intervention = np.copy(X_intervention)
@@ -170,8 +170,8 @@ def prepare_data(config, select_gender=None):
 
 	X_pause = np.concatenate((all_counts_cc, all_counts_cd), axis=0).astype(np.float32)
 
-	y_reg_cc = utils.get_regression_values(os.path.join(dataset_dir, 'cc_meta_data.txt'))
-	y_reg_cd = utils.get_regression_values(os.path.join(dataset_dir, 'cd_meta_data.txt'))
+	y_reg_cc = alz_utils.get_regression_values(os.path.join(dataset_dir, 'cc_meta_data.txt'))
+	y_reg_cd = alz_utils.get_regression_values(os.path.join(dataset_dir, 'cd_meta_data.txt'))
 
 	y_reg_pause = np.concatenate((y_reg_cc, y_reg_cd), axis=0).astype(np.float32)
 
@@ -203,8 +203,8 @@ def prepare_data(config, select_gender=None):
 
 	X_reg_compare = np.copy(X_compare)
 
-	y_reg_cc = utils.get_regression_values(os.path.join(dataset_dir, 'cc_meta_data.txt'))
-	y_reg_cd = utils.get_regression_values(os.path.join(dataset_dir, 'cd_meta_data.txt'))
+	y_reg_cc = alz_utils.get_regression_values(os.path.join(dataset_dir, 'cc_meta_data.txt'))
+	y_reg_cd = alz_utils.get_regression_values(os.path.join(dataset_dir, 'cd_meta_data.txt'))
 
 	y_reg_compare = np.concatenate((y_reg_cc, y_reg_cd), axis=0).astype(np.float32)
 
@@ -218,8 +218,8 @@ def prepare_data(config, select_gender=None):
 	y_reg = y_reg_intervention
 
 	if select_gender in ['male', 'female']:
-		genders_cc = utils.get_gender_values(os.path.join(dataset_dir, 'cc_meta_data.txt'))
-		genders_cd = utils.get_gender_values(os.path.join(dataset_dir, 'cd_meta_data.txt'))
+		genders_cc = alz_utils.get_gender_values(os.path.join(dataset_dir, 'cc_meta_data.txt'))
+		genders_cd = alz_utils.get_gender_values(os.path.join(dataset_dir, 'cd_meta_data.txt'))
 		genders = np.concatenate((genders_cc, genders_cd), axis=0)
 		selected_indices = np.squeeze(np.argwhere(genders==select_gender))
 		p = np.random.permutation(len(selected_indices)) # n_samples = 108
@@ -290,7 +290,7 @@ def prepare_test_data(config):
 	X_compare = np.array([get_compare_features(f) for f in test_files])
 	################################## COMPARE ####################################
 
-	y_reg = utils.get_regression_values(os.path.join(dataset_dir, 'test_metadata.txt'))
+	y_reg = alz_utils.get_regression_values(os.path.join(dataset_dir, 'test_metadata.txt'))
 
 	y_reg = np.array(y_reg).astype(np.float32)
 
