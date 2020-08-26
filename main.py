@@ -82,3 +82,6 @@ if __name__ == '__main__':
 	opts = Opts()
 	config = opts.parse()
 	main(config)
+
+
+# python main.py train --datasets_dir datasets --dataset boston --model_dir boston_anc_models_comsplit_10folds --n_folds 3 --build_model anc_ens --verbose 1
