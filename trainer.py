@@ -71,7 +71,7 @@ def run_all_folds(X, y, train, config):
 			rmse, nll, cluster_rmse = train_deep_ensemble(x_train, y_train, x_val, y_val, fold, config, train=train, verbose=config.verbose)
 			all_clusterwise_rmses.append(cluster_rmse)
 		elif config.build_model == 'anc_ens':
-			rmse, nll, cluster_rmse = train_anchor_ensemble(x_train, y_train, x_val, y_val, fold, scale_c, shift_m, config)
+			rmse, nll, cluster_rmse = train_anchor_ensemble(x_train, y_train, x_val, y_val, fold, scale_c, shift_m, config, train)
 			# train_anchor_ensemble(x_train, y_train, x_val, y_val, fold, config)
 			all_clusterwise_rmses.append(cluster_rmse)
 			# fold+=1
@@ -364,7 +364,7 @@ def train_deep_ensemble(x_train, y_train, x_val, y_val, fold, config, train=Fals
 	return ensemble_val_rmse, ensemble_val_nll
 
 
-def train_anchor_ensemble(x_train, y_train, x_val, y_val, fold, scale_c, shift_m, config):
+def train_anchor_ensemble(x_train, y_train, x_val, y_val, fold, scale_c, shift_m, config, train):
 	is_print = False
 	if(config.verbose):
 		is_print = True
@@ -400,7 +400,10 @@ def train_anchor_ensemble(x_train, y_train, x_val, y_val, fold, scale_c, shift_m
 							model_name=model_name+'_featureset_' + str(i)
 							)
 		
-		y_priors, y_prior_mu, y_prior_std = ens.train(np.asarray(x_train[i]), np.asarray(y_train), np.asarray(x_val[i]), np.asarray(y_val), is_print=is_print)
+		if train:
+			y_priors, y_prior_mu, y_prior_std = ens.train(np.asarray(x_train[i]), np.asarray(y_train), np.asarray(x_val[i]), np.asarray(y_val), is_print=is_print)
+		else:
+			ens.restore(np.asarray(x_train[i]), np.asarray(y_train), np.asarray(x_val[i]), np.asarray(y_val), is_print=is_print)
 
 		y_preds, _mu, _std = ens.predict(np.asarray(x_val[i]))
 		

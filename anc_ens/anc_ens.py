@@ -478,10 +478,10 @@ class NN_ens:
 			# but we found a way to only reinit new variables now
 			# y_pred.append(NNs[ens].predict(x_s))
 			# Add ops to save and restore all the variables.
-			saver = tf.compat.v1.train.Saver()
-			save_path = saver.save(sess, self.model_name+'_modelid_{}'.format(ens))
-			if is_print:
-				print("Model saved in {}".format(self.model_name+'_modelid_{}'.format(ens)))
+		saver = tf.compat.v1.train.Saver()
+		save_path = saver.save(sess, self.model_name)
+		if is_print:
+			print("Model saved in {}".format(self.model_name))
 
 		self.NNs = NNs
 		self.sess = sess
@@ -517,15 +517,56 @@ class NN_ens:
 		return y_preds, y_pred_mu, y_pred_std
 
 
+	def restore(self, X_train, y_train, X_val=None, y_val=None, is_print=True):
+		is_print=True
+		if self.activation_fn == 'relu' or self.activation_fn == 'softplus' or self.activation_fn == 'Lrelu': 
+			init_stddev_1_w = np.sqrt(self.w_0_var) # /np.sqrt(self.hidden_size)
+			init_stddev_1_b = np.sqrt(self.b_0_var) # /np.sqrt(self.hidden_size)
+			init_stddev_2_w = 1.0/np.sqrt(self.hidden_size)#*np.sqrt(10) # 2nd layer init. dist
+			# init_stddev_2_w = np.sqrt(10.0)/np.sqrt(self.hidden_size)#*np.sqrt(10) # 2nd layer init. dist
+			lambda_anchor = self.data_noise/(np.array([init_stddev_1_w,init_stddev_1_b,init_stddev_2_w*1])**2)#/X_train.shape[0]
+			# lambda_anchor = [0.,0.,0.]
+		elif self.activation_fn == 'tanh' or self.activation_fn == 'erf': 
+			init_stddev_1_w = np.sqrt(self.w_0_var) # 1st layer init. dist for weights
+			init_stddev_1_b = np.sqrt(self.b_0_var) # for bias
+			init_stddev_2_w = 1.0/np.sqrt(self.hidden_size) # 2nd layer init. dist
+			# lambda_anchor = [0.,0.,0.] # lambda for weight layer 1, bias layer 1, weight layer 2
+			lambda_anchor = self.data_noise/(np.array([init_stddev_1_w,init_stddev_1_b,init_stddev_2_w])**2)
+		elif self.activation_fn == 'rbf': 
+			init_stddev_1_w = np.sqrt(self.u_var)		# centres = sig_u
+			init_stddev_1_b = np.sqrt(self.g_var) 		# fixed /beta
+			init_stddev_2_w = 1.0/np.sqrt(self.hidden_size) # 2nd layer init. dist
+			lambda_anchor = self.data_noise/(np.array([init_stddev_1_w,init_stddev_1_b,init_stddev_2_w])**2)
 
+		n = X_train.shape[0]
+		X_dim = X_train.shape[1]
+		y_dim = 1 #y_train.shape[1]
+		print("X_dim {}, y_dim {}".format(X_dim, y_dim))
+		# batch_size = n
 
+		# --- ensembles w proper anchoring! ---
+		NNs=[]
+		tf.reset_default_graph()
+		sess = tf.Session()
+		# sess.run(tf.initialize_all_variables())
+		for ens in range(0,self.n_ensembles):
 
+			# create a NN
+			NNs.append(NN(self.activation_fn, X_dim, y_dim, self.hidden_size, 
+					init_stddev_1_w, init_stddev_1_b, init_stddev_2_w, 
+					self.optimiser_in, n, self.learning_rate, decay_rate=self.decay_rate, drop_out=self.drop_out, deep_NN=self.deep_NN))
 
+			# initialise only unitialized variables
+			global_vars = tf.global_variables()
+			is_not_initialized   = sess.run([tf.is_variable_initialized(var) for var in global_vars])
+			not_initialized_vars = [v for (v, f) in zip(global_vars, is_not_initialized) if not f]
+			if len(not_initialized_vars):
+				sess.run(tf.variables_initializer(not_initialized_vars))
 
-
-
-
-
-
-
-
+		filepath = self.model_name
+		
+		saver = tf.compat.v1.train.Saver()
+		saver.restore(sess, filepath)
+		print("Restored {}".format(filepath))
+		self.NNs = NNs
+		self.sess = sess
