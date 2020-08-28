@@ -480,7 +480,8 @@ class NN_ens:
 			# Add ops to save and restore all the variables.
 			saver = tf.compat.v1.train.Saver()
 			save_path = saver.save(sess, self.model_name+'_modelid_{}'.format(ens))
-			print("Model saved in {}".format(self.model_name+'_modelid_{}'.format(ens)))
+			if is_print:
+				print("Model saved in {}".format(self.model_name+'_modelid_{}'.format(ens)))
 
 		self.NNs = NNs
 		self.sess = sess

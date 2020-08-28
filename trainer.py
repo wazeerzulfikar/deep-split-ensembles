@@ -32,6 +32,16 @@ def run_all_folds(X, y, train, config):
 	all_nlls = []
 	all_clusterwise_rmses = []
 	n_feature_sets = len(X)
+
+	# trying to replicate results from their paper
+	if config.build_model=="anc_ens":
+		for i in range(n_feature_sets):
+			X[i], _ = utils.standard_scale(X[i], X[i])
+		scale_c = np.std(y)
+		shift_m = np.mean(y)
+		y, _ = utils.standard_scale(y.reshape(-1, 1), y.reshape(-1, 1))
+		print("shift_m {}, scale_c {}".format(shift_m, scale_c))
+
 	for train_index, test_index in kf.split(y):
 		print('Fold {}'.format(fold))
 
@@ -39,7 +49,7 @@ def run_all_folds(X, y, train, config):
 			train_index = [x for x in range(463715)]
 			test_index = [x for x in range(463715, 515345)]
 
-		y_train, y_val = np.expand_dims(y[train_index], -1), np.expand_dims(y[test_index], -1)
+		y_train, y_val = y[train_index], y[test_index]
 		x_train = [i[train_index] for i in X]
 		x_val = [i[test_index] for i in X]
 		if config.dataset in ['alzheimers_test']:
@@ -53,15 +63,15 @@ def run_all_folds(X, y, train, config):
 			assert x_train[-1].shape[-1] == 6373, 'not compare'
 			x_train[-1], x_val[-1] = alzheimers_utils.normalize_compare_features(x_train[-1], x_val[-1])
 
-		else:
-			for i in range(n_feature_sets):
-				x_train[i], x_val[i] = utils.standard_scale(x_train[i], x_val[i])
+		# else:
+		# 	for i in range(n_feature_sets):
+		# 		x_train[i], x_val[i] = utils.standard_scale(x_train[i], x_val[i])
 
 		if config.build_model == 'gaussian' and config.mod_split != 'none':
 			rmse, nll, cluster_rmse = train_deep_ensemble(x_train, y_train, x_val, y_val, fold, config, train=train, verbose=config.verbose)
 			all_clusterwise_rmses.append(cluster_rmse)
 		elif config.build_model == 'anc_ens':
-			rmse, nll, cluster_rmse = train_anchor_ensemble(x_train, y_train, x_val, y_val, fold, config)
+			rmse, nll, cluster_rmse = train_anchor_ensemble(x_train, y_train, x_val, y_val, fold, scale_c, shift_m, config)
 			# train_anchor_ensemble(x_train, y_train, x_val, y_val, fold, config)
 			all_clusterwise_rmses.append(cluster_rmse)
 			# fold+=1
@@ -81,11 +91,11 @@ def run_all_folds(X, y, train, config):
 	print(['{:.3f} {:.3f}'.format(np.mean(all_nlls, axis=0)[i], np.std(all_nlls, axis=0)[i]) for i in range(n_feature_sets)])
 
 	if config.build_model == 'gaussian' and config.mod_split != 'none':
-		[print('feature set {}, val rmse {:.3f}, +/- {:.3f}'.format(i, np.mean(all_clusterwise_rmses, axis=0)[i], np.std(all_nlls, axis=0)[i]))
+		[print('feature set {}, val rmse {:.3f}, +/- {:.3f}'.format(i, np.mean(all_clusterwise_rmses, axis=0)[i], np.std(all_clusterwise_rmses, axis=0)[i]))
 	 for i in range(n_feature_sets)]
 
 	if config.build_model == 'anc_ens':
-		[print('feature set {}, val rmse {:.3f}, +/- {:.3f}'.format(i, np.mean(all_clusterwise_rmses, axis=0)[i], np.std(all_nlls, axis=0)[i]))
+		[print('feature set {}, val rmse {:.3f}, +/- {:.3f}'.format(i, np.mean(all_clusterwise_rmses, axis=0)[i], np.std(all_clusterwise_rmses, axis=0)[i]))
 	 for i in range(n_feature_sets)]
 
 def train_a_model(
@@ -354,7 +364,7 @@ def train_deep_ensemble(x_train, y_train, x_val, y_val, fold, config, train=Fals
 	return ensemble_val_rmse, ensemble_val_nll
 
 
-def train_anchor_ensemble(x_train, y_train, x_val, y_val, fold, config):
+def train_anchor_ensemble(x_train, y_train, x_val, y_val, fold, scale_c, shift_m, config):
 	is_print = False
 	if(config.verbose):
 		is_print = True
@@ -362,17 +372,19 @@ def train_anchor_ensemble(x_train, y_train, x_val, y_val, fold, config):
 	hyp = hyperparameters.get_hyperparams(config.dataset, config.units)
 	model_name = os.path.join(config.model_dir, '_ancens_fold_{}'.format(fold))
 
-	fold_rmses, fold_nlls = [], []
-	flag=0
-	
 	all_features_ensemble_preds = []
 	n_feature_sets = len(x_train)
 
 	featurewise_nll = []
 
 	featurewise_sigmas = [[] for i in range(n_feature_sets)]
+	
+	ensemble_clusterwise_val_rmse = []
+	ensemble_sigmas = []
+	
 	for i in range(n_feature_sets):
 		print("Feature set {}".format(i))
+		
 		ens = anc_ens.NN_ens(activation_fn='relu', 
 							data_noise=hyp['data_noise'],
 							b_0_var=hyp['b_0_var'], w_0_var=hyp['w_0_var'], u_var=1.0, g_var=1,
@@ -385,66 +397,50 @@ def train_anchor_ensemble(x_train, y_train, x_val, y_val, fold, config):
 							total_trained=0,
 							batch_size=hyp['batch_size'],
 							decay_rate=hyp['decay_rate'],
-							model_name=model_name+'_featureset_{}'.format(i)
+							model_name=model_name+'_featureset_' + str(i)
 							)
-		# print("Feature {} shapes : {}, {}, {}, {}".format(i, np.asarray(x_train[i]).shape, np.asarray(y_train).shape, np.asarray(x_val[i]).shape, np.asarray(y_val).shape))
+		
 		y_priors, y_prior_mu, y_prior_std = ens.train(np.asarray(x_train[i]), np.asarray(y_train), np.asarray(x_val[i]), np.asarray(y_val), is_print=is_print)
 
 		y_preds, _mu, _std = ens.predict(np.asarray(x_val[i]))
-		# print("Shape of preds : {}".format(np.asarray(y_preds).shape))
-		featurewise_nll.append(anc_utils.gauss_neg_log_like(y_val, _mu, _std, scale_c=1.0))
-
+		
 		all_features_ensemble_preds.append(y_preds)
 	
-		if not flag:
-			ensemble_y_preds = y_preds.copy() # shape (n_models, val data points)
-			flag=1
-		else:
-			ensemble_y_preds = ensemble_y_preds + y_preds # taking mean across feature sets
-		
 		y_pred_mu = np.atleast_2d(np.mean(y_preds,axis=0)).T
 		y_pred_std = np.atleast_2d(np.std(y_preds,axis=0, ddof=1)).T
 		y_pred_std = np.sqrt(np.square(y_pred_std) + hyp['data_noise'])
 
-		# anc_utils.metrics_calc(y_val, y_pred_mu, y_pred_std, 1.0, hyp['b_0_var'], hyp['w_0_var'], hyp['data_noise'], ens, is_print=True)
-		# print("Fold {}, feature set {}, rmse {}, nll {}".format(fold, i, ens.rmse, ens.nll))
-		# fold_rmses.append(ens.rmse)
-		# fold_nlls.append(ens.nll)
+		# anc_utils.metrics_calc(y_val, y_pred_mu, y_pred_std, scale_c, hyp['b_0_var'], hyp['w_0_var'], hyp['data_noise'], ens, is_print=True)
 
+		cluster_rmse = np.sqrt(np.mean(np.square(scale_c*(y_val - y_pred_mu))))
+		ensemble_clusterwise_val_rmse.append(cluster_rmse)
+		print('Cluster {} RMSE: {:.3f}'.format(i, cluster_rmse))
+
+		ensemble_sigmas.append(y_pred_std)
+
+		feature_nll = anc_utils.gauss_neg_log_like(y_val, y_pred_mu, y_pred_std, scale_c=scale_c)
+		featurewise_nll.append(feature_nll)
+		print('Cluster {} NLL: {:.3f}'.format(i, feature_nll))
+		print("-"*20)
+
+		
 	all_features_ensemble_preds = np.asarray(all_features_ensemble_preds)
 
 	all_features_ensemble_preds_flip = np.swapaxes(all_features_ensemble_preds, 0, 1)
-
-	ensemble_clusterwise_val_rmse = []
-	for i in range(config.n_feature_sets):
-		anc_split_ensemble_mus = np.mean(all_features_ensemble_preds_flip[:,i,:], axis=0)
-		# print("anc_split_ensemble_mus shape {}".format(anc_split_ensemble_mus.shape))
-		cluster_rmse = mean_squared_error(y_val, anc_split_ensemble_mus, squared=False)
-		# print('Anc Ensemble val rmse clusterwise {} RMSE: {:.3f}'.format(i, cluster_rmse ))
-		ensemble_clusterwise_val_rmse.append(cluster_rmse)
+		
 	mus=[]		
 	for model_id in range(config.n_models):
 		mu = all_features_ensemble_preds_flip[model_id]
-		# mu = [np.mean(all_features_ensemble_preds_flip[model_id][i]) for i in range(config.n_feature_sets)]
-		# print("Before sum mu shape {}".format(np.asarray(mu).shape))
 		mu = np.sum(mu, axis=0) / config.n_feature_sets
-		# print("After sum mu shape {}".format(np.asarray(mu).shape))
 		mus.append(mu)
+
 	ensemble_mus = np.mean(mus, axis=0).reshape(-1,1)
-	# print("mus shape {}, ensemble_mus shape {}".format(np.asarray(mus).shape, ensemble_mus.shape))
-	ensemble_val_rmse = mean_squared_error(y_val, ensemble_mus, squared=False)
 
+	ensemble_val_rmse = np.sqrt(np.mean(np.square(scale_c*(y_val - ensemble_mus))))
 
-	# nll
-
-	ensemble_sigmas = []
-	for i in range(n_feature_sets):
-		ensemble_sigma = np.std(all_features_ensemble_preds[i], axis=0)
-		ensemble_sigmas.append(ensemble_sigma)
-	
 	ensemble_val_nll = []
 	for i in range(n_feature_sets):
-		ensemble_val_nll.append(anc_utils.gauss_neg_log_like(y_val, ensemble_mus, ensemble_sigmas[i], scale_c=1.0))
+		ensemble_val_nll.append(anc_utils.gauss_neg_log_like(y_val, ensemble_mus, ensemble_sigmas[i], scale_c=scale_c))
 
 	print("Ensemble val rmse {}".format(ensemble_val_rmse))
 	print("Ensemble val nlls {}".format(ensemble_val_nll)) # uses ensemble_mu

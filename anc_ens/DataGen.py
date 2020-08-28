@@ -481,6 +481,7 @@ class DataGenerator:
 			# normalise data
 			for i in range(0,data.shape[1]):
 				# avoid zero variance features (exist one or two)
+				print("Scaling {}".format(i))
 				sdev_norm = np.std(data[:,i])
 				sdev_norm = 0.001 if sdev_norm == 0 else sdev_norm
 				data[:,i] = (data[:,i] - np.mean(data[:,i]) )/sdev_norm
