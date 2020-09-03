@@ -4,6 +4,10 @@ np.random.seed(0)
 
 import matplotlib.pyplot as plt
 import tensorflow as tf
+
+import logging
+tf.get_logger().setLevel(logging.ERROR)
+
 import tensorflow_probability as tfp
 from sklearn.model_selection import KFold
 from sklearn.metrics import mean_squared_error
