@@ -226,7 +226,7 @@ def train_deep_ensemble(x_train, y_train, x_val, y_val, fold, config, train=Fals
 		if config.build_model == 'gaussian' and config.mod_split != 'none':
 			gaussian_split_preds = []
 			for i in range(config.n_feature_sets):
-				gaussian_split_preds.append(gaussian_split_models[i](x_val[i])*scale_c + shift_m)
+				gaussian_split_preds.append(gaussian_split_models[i](x_val[i]))
 		elif config.build_model == 'mc_dropout':
 			for i in range(config.n_feature_sets):
 				mc_rmse, nll = gaussian_split_models[i].predict(np.array(x_train[i]), y_train)
