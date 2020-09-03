@@ -125,7 +125,7 @@ def train_a_model(
 
 		model,_ = models.build_model(config)
 
-	negloglik = lambda y, p_y: -config.scale_c*p_y.log_prob(y) # scaled with scale_c, 1 if y_scaling is off
+	negloglik = lambda y, p_y: -p_y.log_prob(y) # scaled with scale_c, 1 if y_scaling is off
 	custom_mse = lambda y, p_y: tf.keras.losses.mean_squared_error(y, p_y.mean())
 	# mse_wrapped = utils.MeanMetricWrapper(custom_mse, name='custom_mse')
 
