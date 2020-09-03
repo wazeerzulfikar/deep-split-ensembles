@@ -450,14 +450,12 @@ def train_anchor_ensemble(x_train, y_train, x_val, y_val, fold, config, train, e
 			ens.restore(np.asarray(x_train[i]), np.asarray(y_train), np.asarray(x_val[i]), np.asarray(y_val), is_print=is_print)
 
 		y_preds, _mu, _std = ens.predict(np.asarray(x_val[i]))
-		
+
 		all_features_ensemble_preds.append(y_preds)
 	
 		y_pred_mu = np.atleast_2d(np.mean(y_preds,axis=0)).T
 		y_pred_std = np.atleast_2d(np.std(y_preds,axis=0, ddof=1)).T
 		y_pred_std = np.sqrt(np.square(y_pred_std) + hyp['data_noise'])
-
-		# anc_utils.metrics_calc(y_val, y_pred_mu, y_pred_std, config.scale_c, hyp['b_0_var'], hyp['w_0_var'], hyp['data_noise'], ens, is_print=True)
 
 		cluster_rmse = np.sqrt(np.mean(np.square(config.scale_c*(y_val - y_pred_mu))))
 		ensemble_clusterwise_val_rmse.append(cluster_rmse)
@@ -466,15 +464,13 @@ def train_anchor_ensemble(x_train, y_train, x_val, y_val, fold, config, train, e
 
 		ensemble_sigmas.append(y_pred_std)
 
-		featurewise_entropies.append(tf.compat.v1.Session().run(tfp.distributions.Normal(y_pred_mu*config.scale_c + config.shift_m, y_pred_std*config.scale_c + config.shift_m).entropy()))
-		# featurewise_entropies.append(scstats.entropy(y_preds*config.scale_c + config.shift_m))
-
+		featurewise_entropies.append(tf.compat.v1.Session().run(tfp.distributions.Normal(y_pred_mu*config.scale_c+config.shift_m, y_pred_std*config.scale_c).entropy()))
+		
 		feature_nll = anc_utils.gauss_neg_log_like(y_val, y_pred_mu, y_pred_std, scale_c=config.scale_c)
 		featurewise_nll.append(feature_nll)
 		if config.verbose>0:
 			print('Cluster {} NLL: {:.3f}'.format(i, feature_nll))
 			print("-"*20)
-
 		
 	all_features_ensemble_preds = np.asarray(all_features_ensemble_preds)
 
@@ -495,9 +491,11 @@ def train_anchor_ensemble(x_train, y_train, x_val, y_val, fold, config, train, e
 		ensemble_val_nll.append(anc_utils.gauss_neg_log_like(y_val, ensemble_mus, ensemble_sigmas[i], scale_c=config.scale_c))
 
 	if experiment==1: # return if calling evaluate from experiment
+		ensemble_sigmas = np.asarray(ensemble_sigmas)*config.scale_c
+		ensemble_mus = np.asarray(ensemble_mus)*config.scale_c+config.shift_m
 		return ensemble_mus, ensemble_sigmas, featurewise_entropies 
 
-	if config.verbose>0:
+	if config.verbose>-1:
 		print("Ensemble val rmse {}".format(ensemble_val_rmse))
 		print("Ensemble val nlls {}".format(ensemble_val_nll)) # uses ensemble_mu
 		print("Ensemble clusterwise val rmse {}".format(ensemble_clusterwise_val_rmse))

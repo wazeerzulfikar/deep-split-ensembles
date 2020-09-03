@@ -8,13 +8,14 @@ import scipy.stats as stats
 import tensorflow_probability as tfp
 import matplotlib.pyplot as plt
 import seaborn as sns
+import tensorflow as tf
 
 import models
 import trainer
 import dataset
 import utils
 from extras import evaluator
-from alzheimers import alz_utils as alzheimers_utils
+# from alzheimers import alz_utils as alzheimers_utils
 
 tfd = tfp.distributions
 
@@ -67,6 +68,8 @@ def plot_kl(X, y, config):
 		entropy_mode_1 = []
 
 		loc_values = [2, 4, 6, 8, 10, 12]
+		# loc_values = [0, 0.5, 1, 1.5, 2, 2.5]
+		# loc_values = [3, 2.5, 2, 1.5, 1, 0.5]
 		scale_values = [1.5, 1.5, 1, 1, 0.5, 0.5]
 
 		ood_params = [r"$\mathcal{N}(2,1.5^2)$", r"$\mathcal{N}(4,1.5^2)$", r"$\mathcal{N}(6,1^2)$",
@@ -75,8 +78,10 @@ def plot_kl(X, y, config):
 		for mu, sigma in zip(loc_values, scale_values):
 			ensemble_mus, ensemble_sigmas, true_values, ensemble_entropies = get_ensemble_predictions(X, y, ood=100, 
 				config=config, ood_loc=mu, ood_scale=sigma, ood_cluster_id=cluster_id)
-
+			# ensemble_entropies[ensemble_entropies==-np.inf] = 0
+			# print("ensemble_entropies[..., cluster_id]", ensemble_entropies[..., cluster_id])
 			hist, bins = np.histogram(ensemble_entropies[..., cluster_id], bins = 30)
+			
 			kl_1.append(tfd.Normal(loc=0,scale=1).kl_divergence(tfd.Normal(loc=mu,scale=sigma)))
 			entropy_mode_1.append(np.mean(bins[np.argmax(hist):np.argmax(hist)+2]))
 
@@ -87,7 +92,7 @@ def plot_kl(X, y, config):
 		# plot_folder = config.plot_name.split('/')[0]
 		# data = np.load(os.path.join(plot_folder, 'kl_plots_values', '{}_{}.npy'.format(config.dataset, cluster_id)))
 		# kl_1, entropy_mode_1 = data[...,0], data[...,1]
-
+		# print("Type : {}".format(type(kl_1[0])))
 		kl_sorted_ind_1 = np.argsort(kl_1)
 		kl_1 = np.array(kl_1)[kl_sorted_ind_1]
 		entropy_mode_1 = np.array(entropy_mode_1)[kl_sorted_ind_1]
@@ -435,7 +440,12 @@ def show_model_summary(X, y, config):
 
 def empirical_rule_test(X, y, config):
 	mus, sigmas, true_values, _ = get_ensemble_predictions(X, y, config=config)
-
+	
+	# if config.build_model=='anc_ens': # scaling the sigma, need to figure why this works
+	# 	sigmas = np.std(y)*sigmas
+		# mus = (mus-np.mean(y))/np.std(y)
+		# true_values = (true_values-np.mean(y))/np.std(y)
+	
 	thresholds = [0.12566, 0.25335, 0.38532, 0.52440, 0.67339, 0.84162, 1.03643, 1.28155, 1.64485]
 
 	for cluster_id in range(len(sigmas[0])):
@@ -512,6 +522,32 @@ def get_ensemble_predictions(X, y, ood=False, config=None, ood_loc=0, ood_scale=
 	all_mus, all_sigmas, true_values, all_entropies, all_rmses = [], [], [], [], []
 	gaussian_split_mus = []
 	n_feature_sets = len(X)
+
+	# if config.build_model=="anc_ens":
+	# 	for i in range(n_feature_sets):
+	# 		X[i], _ = utils.standard_scale(X[i], X[i])
+	# 	scale_c = np.std(y)
+	# 	shift_m = np.mean(y)
+	# 	y, _ = utils.standard_scale(y.reshape(-1, 1), y.reshape(-1, 1))
+	# 	# print("shift_m {}, scale_c {}".format(shift_m, scale_c))
+
+	# set scaling and shift term in case no y_scaling done
+	scale_c = 1
+	shift_m = 0
+	config.scale_c = 1
+	config.shift_m = 0
+
+	# scale target y
+	if config.y_scaling==1:
+		for i in range(n_feature_sets):
+			X[i], _ = utils.standard_scale(X[i], X[i])
+		scale_c = np.std(y)
+		shift_m = np.mean(y)
+		config.scale_c = scale_c
+		config.shift_m = shift_m
+		y, _ = utils.standard_scale(y.reshape(-1, 1), y.reshape(-1, 1))
+		print("Scaled y, shift_m {}, scale_c {}".format(shift_m, scale_c))
+
 	for train_index, test_index in kf.split(y):
 		y_train, y_val = y[train_index], y[test_index]
 		x_train = [i[train_index] for i in X]
@@ -529,23 +565,57 @@ def get_ensemble_predictions(X, y, ood=False, config=None, ood_loc=0, ood_scale=
 			assert x_train[-1].shape[-1] == 6373, 'not compare'
 			x_train[-1], x_val[-1] = alzheimers_utils.normalize_compare_features(x_train[-1], x_val[-1])
 
-		else:
+		elif config.y_scaling==0:
 			for i in range(n_feature_sets):
 				x_train[i], x_val[i] = utils.standard_scale(x_train[i], x_val[i])
 
 		if ood == 1:
 			x_val[0][:,0] = np.random.normal(loc=6, scale=2, size=x_val[0][:,0].shape)
+			# if config.build_model=='anc_ens':
+			# 	x_val[0][:,0] = np.random.normal(loc=0, scale=1, size=x_val[0][:,0].shape)
+			# 	print("OOD {}".format(ood))
 		if ood == 2:
 			x_val[1][:,0] = np.random.normal(loc=6, scale=2, size=x_val[1][:,0].shape)
+			# if config.build_model=='anc_ens':
+			# 	x_val[1][:,0] = np.random.normal(loc=0, scale=1, size=x_val[1][:,0].shape)
+			# 	print("OOD {}".format(ood))
 		if ood == 3:
 			x_val[0][:,0] = np.random.normal(loc=6, scale=2, size=x_val[0][:,0].shape)
 			x_val[1][:,0] = np.random.normal(loc=12, scale=1, size=x_val[1][:,0].shape)
+			# if config.build_model=='anc_ens':
+			# 	x_val[0][:,0] = np.random.normal(loc=0, scale=1, size=x_val[1][:,0].shape)
+			# 	x_val[1][:,0] = np.random.normal(loc=0, scale=1, size=x_val[1][:,0].shape)
+			# 	print("OOD {}".format(ood))
 		if ood == 100:
 			x_val[ood_cluster_id][:,0] = np.random.normal(loc=ood_loc, scale=ood_scale, size=x_val[ood_cluster_id][:,0].shape)
 
 		mus = []
 		featurewise_entropies = [[] for i in range(n_feature_sets)]
 		featurewise_sigmas = [[] for i in range(n_feature_sets)]
+
+		if config.build_model=='anc_ens':
+			ensemble_mus, ensemble_sigmas, ensemble_entropies = trainer.train_anchor_ensemble(x_train, y_train, x_val, y_val, fold, config, False, 1)
+			for i in range(y_val.shape[0]):
+				all_mus.append(ensemble_mus[i])
+				all_sigmas.append([ensemble_sigmas[j][i] for j in range(n_feature_sets)])
+				all_entropies.append([ensemble_entropies[j][i] for j in range(n_feature_sets)])
+				true_values.append(shift_m+scale_c*y_val[i])
+			# print("ensemble_mus {}".format(ensemble_mus))
+			# print("\n")
+			# print("ensemble_sigmas {}".format(ensemble_sigmas))
+			# print("\n")
+			# print("y_val {}".format(y_val))
+			# print("\n")
+			# print("true_values {}".format(true_values))
+
+			fold+=1
+			val_rmse = mean_squared_error(shift_m+scale_c*y_val, ensemble_mus, squared=False)
+			all_rmses.append(val_rmse)
+			if config.verbose > 0 or True:
+				print('Fold ', fold-1)
+				print('Val RMSE: {:.3f}'.format(val_rmse))
+			continue
+
 		for model_id in range(config.n_models):
 			if config.build_model == 'gaussian' and config.mod_split == 'none':
 				model, _ = models.build_model(config)
@@ -575,31 +645,53 @@ def get_ensemble_predictions(X, y, ood=False, config=None, ood_loc=0, ood_scale=
 
 			y_val = y_val.reshape(-1,1)
 
+			y_val = y_val*config.scale_c + config.shift_m
+
 			if config.build_model == 'gaussian' and config.mod_split != 'none':
 				mu = [gaussian_split_preds[i].mean().numpy()[:,0] for i in range(config.n_feature_sets)]
+				mu = mu*config.scale_c + config.shift_m
 				gaussian_split_mus.append(mu)
 				mu = np.sum(mu, axis=0) / config.n_feature_sets
 				mus.append(mu)
 
 			elif config.build_model in ['combined_multivariate', 'gaussian']:
-				mus.append(preds.mean().numpy()[:,0])
+				mu = preds.mean().numpy()[:,0]
+				mu = mu*config.scale_c + config.shift_m
+				mus.append(mu)
 
 			elif config.build_model == 'combined_pog':
-				mus.append(preds[0].mean().numpy())
+				mu = preds[0].mean().numpy()
+				mu = mu*config.scale_c + config.shift_m
+				mus.append(mu)
 
 			for i in range(n_feature_sets):
 				if config.build_model == 'gaussian' and config.mod_split != 'none':
-					featurewise_sigmas[i].append(gaussian_split_preds[i].stddev().numpy())
-					featurewise_entropies[i].append(gaussian_split_preds[i].entropy().numpy())
+					sig = gaussian_split_preds[i].stddev().numpy()
+					sig = sig*config.scale_c
+					featurewise_sigmas[i].append(sig)
+					ent = gaussian_split_preds[i].entropy().numpy()
+					ent = ent + 0.5*np.log(config.scale_c)
+					featurewise_entropies[i].append(ent)
 
 				elif config.build_model in ['combined_multivariate', 'gaussian']:
-					featurewise_sigmas[i].append(preds.stddev().numpy()[:,i:i+1])
-					featurewise_entropies[i].append(preds.entropy().numpy())
+					sig = preds.stddev().numpy()[:,i:i+1]
+					sig = sig*config.scale_c
+					featurewise_sigmas[i].append(sig)
+					ent = preds.entropy().numpy()
+					ent = ent + 0.5*np.log(config.scale_c)
+					featurewise_entropies[i].append(ent)
 
 				elif config.build_model == 'combined_pog':
-					featurewise_sigmas[i].append(preds[i].stddev().numpy())
-					featurewise_entropies[i].append(preds[i].entropy().numpy())
+					sig = preds[i].stddev().numpy()
+					sig = sig*config.scale_c
+					featurewise_sigmas[i].append(sig)
+					ent = preds[i].entropy().numpy()
+					ent = ent + 0.5*np.log(config.scale_c)
+					featurewise_entropies[i].append(ent)
 
+			y_val = (y_val - config.shift_m)/config.scale_c # standard scaling for next model eval
+
+		y_val = y_val*config.scale_c + config.shift_m # restore to calculate metrics
 
 		ensemble_mus = np.mean(mus, axis=0).reshape(-1,1)
 		ensemble_entropies = np.mean(featurewise_entropies, axis=1).reshape(n_feature_sets, -1)
@@ -630,6 +722,8 @@ def get_ensemble_predictions(X, y, ood=False, config=None, ood_loc=0, ood_scale=
 	all_sigmas = np.reshape(all_sigmas, (-1, n_feature_sets))
 	true_values = np.reshape(true_values, (-1, 1))
 	all_entropies = np.reshape(all_entropies, (-1, n_feature_sets))
+
+	print("all_mus : {}\nall_sigmas : {}\ntrue_values : {}\n all_entropies : {}".format(all_mus, all_sigmas, true_values, all_entropies))
 
 	print('Total val rmse', np.mean(all_rmses))
 

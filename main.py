@@ -81,6 +81,7 @@ def main(config):
 if __name__ == '__main__':
 	opts = Opts()
 	config = opts.parse()
+	config.verbose = (int)(config.verbose)
 	main(config)
 
 
