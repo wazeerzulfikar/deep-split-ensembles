@@ -62,6 +62,19 @@ python main.py experiment --exp_name empirical_rule_test --datasets_dir datasets
 
 ## Further Notes
 
+### Mapping for regression datasets to `--dataset` flag
+
+1. Boston Housing : boston
+2. Concrete : cement
+3. Energy Efficiency : energy_efficiency
+4. Kin8nm : kin8nm
+5. Naval Propulsion Plant : naval
+6. Power Plant Output : power_plant
+7. Protein Structure : protein
+8. Red Wine Quality : wine
+9. Yacht Hydrodynamics : yacht
+10. Year prediction MSD : msd
+
 ### Human experts
 
 Set `--mod_split` flag in all commands to `human`, to access splits created by human experts.
