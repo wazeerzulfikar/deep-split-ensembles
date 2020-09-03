@@ -55,7 +55,7 @@ def get_hyperparams(data_set,hidden_size, activation_fn='relu', is_deep_NN=False
 		hyp['single_data_n_std'] = np.sqrt(0.01)
 
 
-	elif data_set == 'energy':
+	elif data_set == 'energy_efficiency':
 		X_dim=8
 		# general params shared by all
 		if activation_fn == 'relu':
@@ -76,7 +76,7 @@ def get_hyperparams(data_set,hidden_size, activation_fn='relu', is_deep_NN=False
 		hyp['single_data_n_std'] = np.sqrt(0.001)
 
 
-	elif data_set == 'concrete':
+	elif data_set == 'cement':
 		X_dim=8
 		# general params shared by all
 		if activation_fn == 'relu':

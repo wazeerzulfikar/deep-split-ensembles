@@ -1,4 +1,3 @@
-
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import norm
@@ -12,7 +11,7 @@ importlib.reload(utils)
 from utils import *
 
 import tensorflow.compat.v1 as tf
-tf.disable_v2_behavior()
+# tf.disable_v2_behavior()
 
 class NN():
 	def __init__(self, 
@@ -366,7 +365,7 @@ class NN_ens:
 		n = X_train.shape[0]
 		X_dim = X_train.shape[1]
 		y_dim = 1 #y_train.shape[1]
-		print("X_dim {}, y_dim {}".format(X_dim, y_dim))
+		# print("X_dim {}, y_dim {}".format(X_dim, y_dim))
 		# batch_size = n
 
 		# --- ensembles w proper anchoring! ---
@@ -516,8 +515,7 @@ class NN_ens:
 
 		return y_preds, y_pred_mu, y_pred_std
 
-
-	def restore(self, X_train, y_train, X_val=None, y_val=None, is_print=True):
+	def restore(self, X_train, y_train, X_val=None, y_val=None, is_print=False):
 		is_print=True
 		if self.activation_fn == 'relu' or self.activation_fn == 'softplus' or self.activation_fn == 'Lrelu': 
 			init_stddev_1_w = np.sqrt(self.w_0_var) # /np.sqrt(self.hidden_size)
@@ -541,7 +539,7 @@ class NN_ens:
 		n = X_train.shape[0]
 		X_dim = X_train.shape[1]
 		y_dim = 1 #y_train.shape[1]
-		print("X_dim {}, y_dim {}".format(X_dim, y_dim))
+		# print("X_dim {}, y_dim {}".format(X_dim, y_dim))
 		# batch_size = n
 
 		# --- ensembles w proper anchoring! ---
@@ -567,6 +565,7 @@ class NN_ens:
 		
 		saver = tf.compat.v1.train.Saver()
 		saver.restore(sess, filepath)
-		print("Restored {}".format(filepath))
+		if is_print:
+			print("Restored {}".format(filepath))
 		self.NNs = NNs
 		self.sess = sess
