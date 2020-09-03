@@ -58,6 +58,14 @@ def run_all_folds(X, y, train, config):
 			train_index = [x for x in range(463715)]
 			test_index = [x for x in range(463715, 515345)]
 
+		if config.cv_type=='seeded':
+			# split into train test
+			perm = np.random.RandomState(seed=999+fold).permutation(len(y))
+			train_prop = 1.0 - config.n_folds/100
+			train_size = int(round(train_prop*len(y)))
+			train_index = perm[:train_size]
+			test_index = perm[train_size:]
+
 		y_train, y_val = y[train_index], y[test_index]
 		x_train = [i[train_index] for i in X]
 		x_val = [i[test_index] for i in X]
@@ -83,7 +91,7 @@ def run_all_folds(X, y, train, config):
 
 			if config.task=='experiment':
 				return train_anchor_ensemble(x_train, y_train, x_val, y_val, fold, scale_c, shift_m, config, train, 1)
-			rmse, nll, cluster_rmse = train_anchor_ensemble(x_train, y_train, x_val, y_val, fold, scale_c, shift_m, config, train)
+			rmse, nll, cluster_rmse = train_anchor_ensemble(x_train, y_train, x_val, y_val, fold, config, train)
 			# train_anchor_ensemble(x_train, y_train, x_val, y_val, fold, config)
 			all_clusterwise_rmses.append(cluster_rmse)
 			# fold+=1
@@ -399,7 +407,7 @@ def train_deep_ensemble(x_train, y_train, x_val, y_val, fold, config, train=Fals
 
 def train_anchor_ensemble(x_train, y_train, x_val, y_val, fold, config, train, experiment=0):
 	is_print = False
-	if config.verbose>0:
+	if config.verbose > 0:
 		is_print = True
 
 	hyp = hyperparameters.get_hyperparams(config.dataset, config.units)
