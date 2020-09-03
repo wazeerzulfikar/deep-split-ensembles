@@ -44,12 +44,12 @@ def feature_split(config, features, return_split_sizes=False):
     
     # dendrogram(linkage, color_threshold=0)
     # plt.show()
-    if config.dataset == 'energy_efficiency':
-        linkage = np.load('energy_efficiency_linkage.npy')
+    # if config.dataset == 'energy_efficiency':
+    #     linkage = np.load('energy_efficiency_linkage.npy')
     if config.dataset=='msd':
         clusters = fcluster(linkage, 0.75 * Y.max(), 'distance')
     else:
-        clusters = fcluster(linkage, 0.5 * Y.max(), 'distance')
+        clusters = fcluster(linkage, config.hc_threshold * Y.max(), 'distance')
 
     if(return_split_sizes):
         return clusters

@@ -31,7 +31,8 @@ class Opts:
 		self.parser_train.add_argument('--mixture_approximation', default='gaussian', help='gaussian | none')
 		self.parser_train.add_argument('--y_scaling', default=0, type=int, help='If the target vector needs to be scaled')
 		self.parser_train.add_argument('--cv_type', default='kfold', help='Which type of cross validation? seeded | kfold')
-		
+		self.parser_train.add_argument('--hc_threshold', default=0.5, type=int, help='Threshold for HC Clustering')
+
 		self.parser_train.add_argument('--select_gender', default='all', help='For alzheimers')
 
 		self.parser_train.add_argument('--verbose', type=int, default=1)
@@ -53,10 +54,11 @@ class Opts:
 		self.parser_evaluate.add_argument('--mixture_approximation', default='gaussian', help='gaussian | none')
 		self.parser_evaluate.add_argument('--y_scaling', default=0, type=int, help='If the target vector needs to be scaled')
 		self.parser_evaluate.add_argument('--cv_type', default='kfold', help='Which type of cross validation? seeded | kfold')
+		self.parser_evaluate.add_argument('--hc_threshold', default=0.5, type=int, help='Threshold for HC Clustering')
 
 		self.parser_evaluate.add_argument('--select_gender', default='all', help='For alzheimers')
 
-		self.parser_evaluate.add_argument('--verbose', default=0)
+		self.parser_evaluate.add_argument('--verbose', type=int, default=0)
 
 		# Experiment Task
 		self.parser_experiment = self.subparsers.add_parser('experiment', help='Experiments to run on model')
@@ -79,6 +81,7 @@ class Opts:
 		self.parser_experiment.add_argument('--y_scaling', default=0, type=int, help='If the target vector needs to be scaled')
 		self.parser_experiment.add_argument('--cv_type', default='kfold', help='Which type of cross validation? seeded | kfold')
 		self.parser_experiment.add_argument('--power', default=3, type=int, help='Only for toy regression')
+		self.parser_experiment.add_argument('--hc_threshold', default=0.5, type=int, help='Threshold for HC Clustering')
 
 		self.parser_experiment.add_argument('--verbose', type=int, default=1)
 

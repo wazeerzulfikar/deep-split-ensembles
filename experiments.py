@@ -441,11 +441,6 @@ def show_model_summary(X, y, config):
 def empirical_rule_test(X, y, config):
 	mus, sigmas, true_values, _ = get_ensemble_predictions(X, y, config=config)
 	
-	# if config.build_model=='anc_ens': # scaling the sigma, need to figure why this works
-	# 	sigmas = np.std(y)*sigmas
-		# mus = (mus-np.mean(y))/np.std(y)
-		# true_values = (true_values-np.mean(y))/np.std(y)
-	
 	thresholds = [0.12566, 0.25335, 0.38532, 0.52440, 0.67339, 0.84162, 1.03643, 1.28155, 1.64485]
 
 	for cluster_id in range(len(sigmas[0])):
@@ -523,14 +518,6 @@ def get_ensemble_predictions(X, y, ood=False, config=None, ood_loc=0, ood_scale=
 	gaussian_split_mus = []
 	n_feature_sets = len(X)
 
-	# if config.build_model=="anc_ens":
-	# 	for i in range(n_feature_sets):
-	# 		X[i], _ = utils.standard_scale(X[i], X[i])
-	# 	scale_c = np.std(y)
-	# 	shift_m = np.mean(y)
-	# 	y, _ = utils.standard_scale(y.reshape(-1, 1), y.reshape(-1, 1))
-	# 	# print("shift_m {}, scale_c {}".format(shift_m, scale_c))
-
 	# set scaling and shift term in case no y_scaling done
 	scale_c = 1
 	shift_m = 0
@@ -571,21 +558,14 @@ def get_ensemble_predictions(X, y, ood=False, config=None, ood_loc=0, ood_scale=
 
 		if ood == 1:
 			x_val[0][:,0] = np.random.normal(loc=6, scale=2, size=x_val[0][:,0].shape)
-			# if config.build_model=='anc_ens':
-			# 	x_val[0][:,0] = np.random.normal(loc=0, scale=1, size=x_val[0][:,0].shape)
-			# 	print("OOD {}".format(ood))
+
 		if ood == 2:
 			x_val[1][:,0] = np.random.normal(loc=6, scale=2, size=x_val[1][:,0].shape)
-			# if config.build_model=='anc_ens':
-			# 	x_val[1][:,0] = np.random.normal(loc=0, scale=1, size=x_val[1][:,0].shape)
-			# 	print("OOD {}".format(ood))
+
 		if ood == 3:
 			x_val[0][:,0] = np.random.normal(loc=6, scale=2, size=x_val[0][:,0].shape)
 			x_val[1][:,0] = np.random.normal(loc=12, scale=1, size=x_val[1][:,0].shape)
-			# if config.build_model=='anc_ens':
-			# 	x_val[0][:,0] = np.random.normal(loc=0, scale=1, size=x_val[1][:,0].shape)
-			# 	x_val[1][:,0] = np.random.normal(loc=0, scale=1, size=x_val[1][:,0].shape)
-			# 	print("OOD {}".format(ood))
+
 		if ood == 100:
 			x_val[ood_cluster_id][:,0] = np.random.normal(loc=ood_loc, scale=ood_scale, size=x_val[ood_cluster_id][:,0].shape)
 
@@ -600,13 +580,6 @@ def get_ensemble_predictions(X, y, ood=False, config=None, ood_loc=0, ood_scale=
 				all_sigmas.append([ensemble_sigmas[j][i] for j in range(n_feature_sets)])
 				all_entropies.append([ensemble_entropies[j][i] for j in range(n_feature_sets)])
 				true_values.append(shift_m+scale_c*y_val[i])
-			# print("ensemble_mus {}".format(ensemble_mus))
-			# print("\n")
-			# print("ensemble_sigmas {}".format(ensemble_sigmas))
-			# print("\n")
-			# print("y_val {}".format(y_val))
-			# print("\n")
-			# print("true_values {}".format(true_values))
 
 			fold+=1
 			val_rmse = mean_squared_error(shift_m+scale_c*y_val, ensemble_mus, squared=False)
