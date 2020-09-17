@@ -15,13 +15,23 @@ import trainer
 import dataset
 import utils
 from extras import evaluator
-# from alzheimers import alz_utils as alzheimers_utils
+from alzheimers import alz_utils as alzheimers_utils
 
 tfd = tfp.distributions
 
 def plot_defer_simulation(X, y, config):
 
 	ensemble_mus, ensemble_sigmas, true_values, _ = get_ensemble_predictions(X, y, ood=False, config=config)
+
+	if config.build_model == 'gaussian':
+		model_name = 'Deep Ens.'
+	elif config.build_model == 'anc_ens':
+		model_name = 'Anch. Ens.'
+	else:
+		model_name = 'Deep Split Ens.'
+	
+	plt.plot([], [], ' ', label=model_name, color='white')
+
 
 	for i in range(config.n_feature_sets):
 		print('feature set {}'.format(i))
@@ -33,20 +43,23 @@ def plot_defer_simulation(X, y, config):
 
 		use_samples = total_samples - drop_n 
 		non_defered_rmse_list = non_defered_rmse_list[:-drop_n]
-		plt.plot(range(use_samples+1), non_defered_rmse_list, label='Cluster '+str(i+1), linewidth=3)
+		if config.mod_split == 'none':
+			plt.plot(range(use_samples+1), non_defered_rmse_list, color='black', label='unified', linewidth=3)
+		else:
+			plt.plot(range(use_samples+1), non_defered_rmse_list, label='Cluster '+str(i+1), linewidth=3)
 		plt.legend(loc='lower left', fontsize=14)
 		plt.xlabel('No. of Datapoints Deferred', fontsize=22)
 		plt.xticks(range(0, use_samples+1, (use_samples)//10))
-		plt.title(config.dataset.capitalize().replace('_',' ') + ' (hier. clust.)', fontsize=24)
+		plt.title(config.dataset.capitalize().replace('_',' '), fontsize=24)
 
 		if config.dataset == 'boston':
-			plt.title('Boston (hier. clust.)', fontsize=22)
+			plt.title('Boston', fontsize=22)
 		if config.dataset == 'energy_efficiency':
-			plt.title('Energy'+' (hier. clust.)', fontsize=22)
+			plt.title('Energy', fontsize=22)
 		if config.dataset == 'cement':
-			plt.title('Concrete'+' (hier. clust.)', fontsize=22)
+			plt.title('Concrete', fontsize=22)
 		if config.dataset == 'power_plant':
-			plt.title('Power'+' (hier. clust.)', fontsize=22)
+			plt.title('Power', fontsize=22)
 
 	plt.ylabel('Non-Deferred RMSE', fontsize=22)
 
@@ -139,7 +152,7 @@ def plot_ood(X, y, config):
 	# ensemble_entropies = np.concatenate(np.load('plots/clusterwise_ood/deep_ensemble/{}_val_entropy.npy'.format(config.dataset), 
 	# 	allow_pickle=True))
 	config.plot_name = config.plot_name.replace('.png', '')
-	os.makedirs(config.plot_name, exist_ok=True)
+	# os.makedirs(config.plot_name, exist_ok=True)
 
 	# ensemble_entropies = np.squeeze(ensemble_entropies)
 	# plot_ood_helper(ensemble_entropies, os.path.join(config.plot_name,'de.png'), config, deep_ensemble=True)
@@ -152,38 +165,85 @@ def plot_ood(X, y, config):
 	
 	plot_ood_helper(ensemble_entropies, os.path.join(config.plot_name,'out_1.png'), config, ood=1)
 
+	if config.mod_split != 'none':
+		ensemble_mus, ensemble_sigmas, true_values, ensemble_entropies = get_ensemble_predictions(X, y, config=config, ood=0)
+		plot_ood_helper(ensemble_entropies, os.path.join(config.plot_name,'in.png'), config)
+
 	ensemble_mus, ensemble_sigmas, true_values, ensemble_entropies = get_ensemble_predictions(X, y, config=config, ood=2)
 	
 	plot_ood_helper(ensemble_entropies, os.path.join(config.plot_name,'out_2.png'), config, ood=2)
 
-	ensemble_mus, ensemble_sigmas, true_values, ensemble_entropies = get_ensemble_predictions(X, y, config=config, ood=3)
+	# ensemble_mus, ensemble_sigmas, true_values, ensemble_entropies = get_ensemble_predictions(X, y, config=config, ood=3)
 	
-	plot_ood_helper(ensemble_entropies, os.path.join(config.plot_name,'out_3.png'), config, ood=3)
+	# plot_ood_helper(ensemble_entropies, os.path.join(config.plot_name,'out_3.png'), config, ood=3)
 
 def plot_ood_helper(ensemble_entropies, plot_name, config, deep_ensemble=False, ood=False):
+	
+	# ood_legend_params = [r'In Dist.', r'OOD $\mathcal{N}(6,2^2)$', r'OOD $\mathcal{N}(12,1^2)$']
+	ood_legend_params = [r'In Dist.', r'OOD 1', r'OOD 2']
+	line_colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:purple', 'tab:brown', 'tab:pink', 'tab:gray', 'tab:olive', 'tab:cyan']
 
-	if ood == False:
-		plt.plot([], [], ' ', label="In Dist.", color='white')
 
-	if deep_ensemble:
-		b = sns.distplot(ensemble_entropies, hist = False, kde = True,
-                 kde_kws = {'linewidth': 3}, label='Unified', color='black')
-		b.set_ylabel('Density', fontsize=26)
+
+	if (config.build_model=='gaussian' or config.build_model=='anc_ens') and config.mod_split=='none':
+		if ood != False:
+
+
+			b = sns.distplot(ensemble_entropies[...,0], hist = False, kde = True,
+			                 kde_kws = {'linewidth': 3},
+			                 label = ood_legend_params[ood], color='black')
+			if ood == 1:
+				b.lines[-1].set_linestyle("--")
+			if ood == 2:
+				b.lines[-1].set_linestyle(":")
+		else:
+			if config.build_model == 'gaussian':
+				model_name = 'Deep Ens.'
+			elif config.build_model == 'anc_ens':
+				model_name = 'Anch. Ens.'
+			else:
+				model_name = 'Deep Split Ens.'
+
+			plt.plot([], [], ' ', label=model_name, color='white')
+
+
+			b = sns.distplot(ensemble_entropies, hist = False, kde = True,
+	                 kde_kws = {'linewidth': 3}, label='In Dist.', color='black')
+			if config.build_model == 'gaussian':
+				b.set_ylabel('Density', fontsize=26)
+
 	else:
-		ood_legend_params = [r'In Dist.', r'OOD $\mathcal{N}(6,2^2)$', r'OOD $\mathcal{N}(12,1^2)$']
+
+		if ood == False:
+			if config.build_model == 'gaussian':
+				model_name = 'Deep Ens.'
+			elif config.build_model == 'anc_ens':
+				model_name = 'Anch. Ens.'
+			else:
+				model_name = 'Deep Split Ens.'
+
+			plt.plot([], [], ' ', label=model_name, color='white')
+
 		for i in range(config.n_feature_sets):
 			print('feature set {}'.format(i))
 			if ood == False:
 				b = sns.distplot(ensemble_entropies[...,i], hist = False, kde = True,
 		                 kde_kws = {'linewidth': 3},
-		                 label = 'Cluster '+str(i+1))
+		                 label = 'Cluster '+str(i+1), color=line_colors[i])
 			else:
-				if (ood == 1 and i == 0) or (ood == 3 and i == 0) or (ood == 2 and i == 1):
+				if (ood == 1 and i == 0) or (ood == 3 and i == 0):
 
 					b = sns.distplot(ensemble_entropies[...,i], hist = False, kde = True,
 			                 kde_kws = {'linewidth': 3},
-			                 label = ood_legend_params[1])
-					b.lines[i].set_linestyle("--")
+			                 label = 'OOD {}'.format(ood), color=line_colors[i])
+					b.lines[-1].set_linestyle("--")
+
+				elif (ood == 2 and i == 1):
+
+					b = sns.distplot(ensemble_entropies[...,i], hist = False, kde = True,
+			                 kde_kws = {'linewidth': 3},
+			                 label = 'OOD {}'.format(ood), color=line_colors[i])
+					b.lines[-1].set_linestyle(":")
 
 				elif ood == 3 and i == 1:
 					b = sns.distplot(ensemble_entropies[...,i], hist = False, kde = True,
@@ -191,80 +251,119 @@ def plot_ood_helper(ensemble_entropies, plot_name, config, deep_ensemble=False, 
 			                 label = ood_legend_params[2])
 					b.lines[i].set_linestyle(":")
 
-				else:
-					b = sns.distplot(ensemble_entropies[...,i], hist = False, kde = True,
-			                 kde_kws = {'linewidth': 3},
-			                 label = ood_legend_params[0])
+				# else:
+				# 	b = sns.distplot(ensemble_entropies[...,i], hist = False, kde = True,
+			 #                 kde_kws = {'linewidth': 3},
+			 #                 label = ood_legend_params[0])
 
-	b.legend(loc='upper right', fontsize=16)
+	b.legend(loc='upper right', fontsize=14)
 
-	plt.xlim(0,6)
 
 	if config.dataset == 'boston':
-		plt.ylim(0,4)
-
-	if config.dataset == 'energy_efficiency':
-		plt.ylim(0,9)
-
-	if config.dataset == 'wine':
-		# plt.ylim(0,8)
-		plt.ylim(0,12)
+		plt.xlim(0,6)
 
 	if config.dataset == 'cement':
-		plt.ylim(0,7)
+		plt.xlim(0,7)
+
+	if config.dataset == 'wine':
+		plt.xlim(0,6)
 
 	if config.dataset == 'power_plant':
-		# plt.ylim(0,6)
-		plt.ylim(0,10)
+		plt.xlim(0,7)
 
-	if config.dataset == 'kin8nm':
-		plt.ylim(0,5)
-		plt.xlim(-4,6)
+	# 	plt.ylim(0,3)
+
+	# if config.dataset == 'energy_efficiency':
+	# 	plt.ylim(0,9)
+
+	# if config.dataset == 'wine':
+	# 	# plt.ylim(0,8)
+	# 	plt.ylim(0,12)
+
+	# if config.dataset == 'cement':
+	# 	plt.ylim(0,7)
+
+	# if config.dataset == 'power_plant':
+	# 	# plt.ylim(0,6)
+	# 	plt.ylim(0,10)
+
+	# if config.dataset == 'kin8nm':
+	# 	plt.ylim(0,5)
+	# 	plt.xlim(-4,6)
 
 
-	if config.dataset == 'yacht':
-		plt.ylim(0,6)
+	# if config.dataset == 'yacht':
+	# 	plt.ylim(0,6)
 
-	if config.dataset == 'protein':
-		plt.ylim(0,7)
+	# if config.dataset == 'protein':
+	# 	plt.ylim(0,7)
 
 	b.tick_params(labelsize=24)
 	b.set_xlabel('Entropy (Nats)', fontsize=26)
 
-	plt.tight_layout(pad=0)
-	plt.savefig(plot_name, dpi=300)
-	plt.clf()
-	plt.close()
+	if config.build_model in ['gaussian', 'anc_ens'] and config.mod_split=='none' and ood==2:
+		plot_name_last = plot_name.split('/')[:-1]
+		plot_name = os.path.join(*plot_name_last)+'.png'
+		plt.tight_layout(pad=0)
+		plt.savefig(plot_name, dpi=300)
+		plt.clf()
+		plt.close()
+	elif config.build_model=='combined_pog' and ood != False:
+		plt.tight_layout(pad=0)
+		plt.savefig(plot_name, dpi=300)
+		plt.clf()
+		plt.close()
 
 def plot_alzheimers_ood(X, y, config):
+
+	config.plot_name = config.plot_name.replace('.png', '')
 
 	# ensemble_mus, ensemble_sigmas, true_values, ensemble_entropies = get_ensemble_predictions(X, y, ood=0, 
 	# 	config=config, alzheimers_test_data='alzheimers_test')
 	# plot_alzheimers_ood_helper(ensemble_entropies, os.path.join(config.plot_name,'in.png'), config, ood=0)
 
 	ensemble_mus, ensemble_sigmas, true_values, ensemble_entropies = get_ensemble_predictions(X, y, ood=0, 
-		config=config, alzheimers_test_data='alzheimers_test_female')
-	plot_alzheimers_ood_helper(ensemble_entropies, os.path.join(config.plot_name,'in_F.png'), config, ood=0)
+		config=config, alzheimers_test_dataset='alzheimers_test_female')
+	plot_alzheimers_ood_helper(ensemble_entropies, os.path.join(config.plot_name,'in_F.png'), config, ood=0, gender='female')
 
 	ensemble_mus, ensemble_sigmas, true_values, ensemble_entropies = get_ensemble_predictions(X, y, ood=0, 
-		config=config, alzheimers_test_data='alzheimers_test_male')
-	plot_alzheimers_ood_helper(ensemble_entropies, os.path.join(config.plot_name,'out_M.png'), config, ood=1)
+		config=config, alzheimers_test_dataset='alzheimers_test_male')
+	plot_alzheimers_ood_helper(ensemble_entropies, os.path.join(config.plot_name,'out_M.png'), config, ood=1, gender='male')
 
 
-def plot_alzheimers_ood_helper(ensemble_entropies, plot_name, config ,ood=0):
+def plot_alzheimers_ood_helper(ensemble_entropies, plot_name, config ,ood=0, gender='male'):
 
 	feature_sets = ['Interventions', 'Disfluency', 'Acoustic']
+
+	if config.build_model == 'gaussian':
+		model_name = 'Deep Ens.'
+	elif config.build_model == 'anc_ens':
+		model_name = 'Anch. Ens.'
+	else:
+		model_name = 'Deep Split Ens.'
+
+	plt.plot([], [], ' ', label=model_name, color='white')
+
 
 	if ood == False:
 		plt.ylabel('Density', fontsize=26)
 
 	for i in range(config.n_feature_sets):
 		print('feature set {}'.format(i))
-		b = sns.distplot(ensemble_entropies[...,i], hist = False, kde = True,
+		if config.build_model == 'gaussian':
+			b = sns.distplot(ensemble_entropies[...,i], hist = False, kde = True,
                  kde_kws = {'linewidth': 3},
-                 label = feature_sets[i])
+                 label = 'Unified', color='black')
+		else:
+			b = sns.distplot(ensemble_entropies[...,i], hist = False, kde = True,
+	                 kde_kws = {'linewidth': 3},
+	                 label = feature_sets[i])
+		if ood == 1 and i == 2:
+			b.lines[-1].set_linestyle("--")
+		if config.build_model == 'gaussian' and ood == 1:
+			b.lines[-1].set_linestyle("--")
 	
-	plt.title('Alzheimers (female)', fontsize=26)
+	plt.title('Alzheimers ({})'.format(gender), fontsize=26)
 
 	b.tick_params(labelsize=24)
 	b.set_xlabel('Entropy (Nats)', fontsize=26)
@@ -272,7 +371,7 @@ def plot_alzheimers_ood_helper(ensemble_entropies, plot_name, config ,ood=0):
 	plt.xticks(range(0,12,2), fontsize=24)
 	plt.yticks(range(0,6,1), fontsize=24)
 	plt.legend(fontsize=20, loc='upper right')
-
+	
 	plt.tight_layout(pad=0)
 	plt.savefig(plot_name, dpi=300)
 	plt.clf()
@@ -327,8 +426,6 @@ def plot_toy_regression(config):
 		x = np.squeeze(x)
 		x = np.transpose(x)
 		y = np.expand_dims(y, axis=-1)
-		print(x.shape)
-		print(y.shape)
 		mus, sigmas = [], []
 		for model_id in range(config.n_models):
 			model, _ = evaluator.train_a_fold(0, model_id, config, x, y, x, y)
@@ -443,6 +540,14 @@ def empirical_rule_test(X, y, config):
 	
 	thresholds = [0.12566, 0.25335, 0.38532, 0.52440, 0.67339, 0.84162, 1.03643, 1.28155, 1.64485]
 
+	if config.build_model == 'gaussian':
+		model_name = 'Deep Ens.'
+	elif config.build_model == 'anc_ens':
+		model_name = 'Anch. Ens.'
+	else:
+		model_name = 'Deep Split Ens.'
+
+
 	for cluster_id in range(len(sigmas[0])):
 		print('Cluster {}'.format(cluster_id+1))
 		count_1 = 0
@@ -466,6 +571,7 @@ def empirical_rule_test(X, y, config):
 	fig, ax = plt.subplots()
 	ideal = [i for i in range(10,100,10)]
 
+	plt.plot([], [], ' ', label=model_name, color='white')
 	plt.plot(ideal, ideal, label='Ideal Calibration', linewidth=2, color='black', linestyle=':')
 
 
@@ -479,44 +585,51 @@ def empirical_rule_test(X, y, config):
 			values[cluster_id].append(count)
 
 		values[cluster_id] = np.array(values[cluster_id])*100/len(mus)
-		plt.scatter(threshold_values, values[cluster_id], s=96)
-		plt.plot(threshold_values, values[cluster_id], label='Cluster '+str(cluster_id+1), linewidth=3)
-
-		plt.title(config.dataset.capitalize().replace('_',' ')+' (hier. clust.)', fontsize=26)
 		
-		plt.ylabel('% of True Values inside Interval', fontsize=20)
+		if config.mod_split == 'none':
+			plt.scatter(threshold_values, values[cluster_id], color='black', s=96)
+			plt.plot(threshold_values, values[cluster_id], label='Unified', color='black', linewidth=3)
 
-		if config.dataset == 'boston':
-			plt.title('Boston'+' (hier. clust.)', fontsize=26)
+		else:
+			plt.scatter(threshold_values, values[cluster_id], s=96)
+			plt.plot(threshold_values, values[cluster_id], label='Cluster '+str(cluster_id+1), linewidth=3)
 
-		if config.dataset == 'energy_efficiency':
-			plt.title('Energy'+' (hier. clust.)', fontsize=26)
-		if config.dataset == 'cement':
-			plt.title('Concrete'+' (hier. clust.)', fontsize=26)
+		# plt.title(config.dataset.capitalize().replace('_',' '), fontsize=26)
+		
+		if config.build_model == 'gaussian':
+			plt.ylabel('% of True Values inside Interval', fontsize=20)
 
-		if config.dataset == 'power_plant':
-			plt.title('Power'+' (hier. clust.)', fontsize=26)
+		# if config.dataset == 'boston':
+		# 	plt.title('Boston', fontsize=26)
 
-		plt.xlabel('% of Prediction Interval around Mean', fontsize=20)
+		# if config.dataset == 'energy_efficiency':
+		# 	plt.title('Energy', fontsize=26)
+		# if config.dataset == 'cement':
+		# 	plt.title('Concrete', fontsize=26)
+
+		# if config.dataset == 'power_plant':
+		# 	plt.title('Power', fontsize=26)
+
+	plt.xlabel('% of Prediction Interval around Mean', fontsize=20)
 
 
 	plt.xticks(range(10, 100, 10))
 	plt.yticks(range(10, 100, 10))
 	ax.tick_params(axis="x", labelsize=18)
 	ax.tick_params(axis="y", labelsize=18)
-	plt.legend(fontsize=16, loc='lower right')
+	plt.legend(fontsize=14, loc='lower right')
 	plt.tight_layout(pad=0)
 	plt.savefig(config.plot_name, dpi=300)
 	plt.clf()
 	plt.close()
 
 def get_ensemble_predictions(X, y, ood=False, config=None, ood_loc=0, ood_scale=1, ood_cluster_id=0,
- alzheimers_test_data=None):
+ alzheimers_test_dataset=None):
 	kf = KFold(n_splits=config.n_folds, shuffle=True, random_state=42)
 	fold = 1
 	all_mus, all_sigmas, true_values, all_entropies, all_rmses = [], [], [], [], []
 	gaussian_split_mus = []
-	n_feature_sets = len(X)
+	n_feature_sets = config.n_feature_sets
 
 	# set scaling and shift term in case no y_scaling done
 	scale_c = 1
@@ -540,17 +653,18 @@ def get_ensemble_predictions(X, y, ood=False, config=None, ood_loc=0, ood_scale=
 		x_train = [i[train_index] for i in X]
 		x_val = [i[test_index] for i in X]
 
-		if alzheimers_test_data is not None:
-			config.dataset = alzheimers_test_data
+		if alzheimers_test_dataset is not None:
+			config.dataset = alzheimers_test_dataset
 			alzheimers_test_data = dataset._alzheimers_test(config)
-			x_val = [np.array(alzheimers_test_data['{}'.format(i)]) for i in range(n_feature_sets)]
+			x_val = [np.array(alzheimers_test_data['{}'.format(i)]) for i in range(3)]
 			y_val = np.array(alzheimers_test_data['y'])
 			print('Alzheimers Testing..')
 			[print('Shape of feature set {} {}'.format(e, np.array(i).shape)) for e,i in enumerate(x_val)]
 
 		if 'alzheimers' in config.dataset:
 			assert x_train[-1].shape[-1] == 6373, 'not compare'
-			x_train[-1], x_val[-1] = alzheimers_utils.normalize_compare_features(x_train[-1], x_val[-1])
+			assert x_val[-1].shape[-1] == 6373, 'not compare'
+			x_train[-1], x_val[-1] = alzheimers_utils.normalize_compare_features(x_train[-1], x_val[-1], gender=alzheimers_test_dataset)
 
 		elif config.y_scaling==0:
 			for i in range(n_feature_sets):
@@ -560,7 +674,10 @@ def get_ensemble_predictions(X, y, ood=False, config=None, ood_loc=0, ood_scale=
 			x_val[0][:,0] = np.random.normal(loc=6, scale=2, size=x_val[0][:,0].shape)
 
 		if ood == 2:
-			x_val[1][:,0] = np.random.normal(loc=6, scale=2, size=x_val[1][:,0].shape)
+			if config.mod_split == 'none':
+				x_val[0][:,-1] = np.random.normal(loc=6, scale=2, size=x_val[0][:,-1].shape)
+			else:
+				x_val[1][:,-1] = np.random.normal(loc=6, scale=2, size=x_val[1][:,-1].shape)
 
 		if ood == 3:
 			x_val[0][:,0] = np.random.normal(loc=6, scale=2, size=x_val[0][:,0].shape)
@@ -590,7 +707,7 @@ def get_ensemble_predictions(X, y, ood=False, config=None, ood_loc=0, ood_scale=
 			continue
 
 		for model_id in range(config.n_models):
-			if config.build_model == 'gaussian' and config.mod_split == 'none':
+			if config.build_model == 'gaussian' and config.mod_split == 'none' and 'alzheimers' not in config.dataset:
 				model, _ = models.build_model(config)
 				model.build((None,x_train[0].shape[1]))
 				model.load_weights(os.path.join(config.model_dir, 'fold_{}_model_{}.h5'.format(fold, model_id+1)))
@@ -622,7 +739,7 @@ def get_ensemble_predictions(X, y, ood=False, config=None, ood_loc=0, ood_scale=
 
 			if config.build_model == 'gaussian' and config.mod_split != 'none':
 				mu = [gaussian_split_preds[i].mean().numpy()[:,0] for i in range(config.n_feature_sets)]
-				mu = mu*config.scale_c + config.shift_m
+				# mu = mu*config.scale_c + config.shift_m
 				gaussian_split_mus.append(mu)
 				mu = np.sum(mu, axis=0) / config.n_feature_sets
 				mus.append(mu)
@@ -637,7 +754,7 @@ def get_ensemble_predictions(X, y, ood=False, config=None, ood_loc=0, ood_scale=
 				mu = mu*config.scale_c + config.shift_m
 				mus.append(mu)
 
-			for i in range(n_feature_sets):
+			for i in range(config.n_feature_sets):
 				if config.build_model == 'gaussian' and config.mod_split != 'none':
 					sig = gaussian_split_preds[i].stddev().numpy()
 					sig = sig*config.scale_c
@@ -667,9 +784,9 @@ def get_ensemble_predictions(X, y, ood=False, config=None, ood_loc=0, ood_scale=
 		y_val = y_val*config.scale_c + config.shift_m # restore to calculate metrics
 
 		ensemble_mus = np.mean(mus, axis=0).reshape(-1,1)
-		ensemble_entropies = np.mean(featurewise_entropies, axis=1).reshape(n_feature_sets, -1)
+		ensemble_entropies = np.mean(featurewise_entropies, axis=1).reshape(config.n_feature_sets, -1)
 		ensemble_sigmas = []
-		for i in range(n_feature_sets):
+		for i in range(config.n_feature_sets):
 			ensemble_sigma = np.sqrt(np.mean(np.square(featurewise_sigmas[i]) + np.square(ensemble_mus), axis=0).reshape(-1,1) - np.square(ensemble_mus))
 			ensemble_sigmas.append(ensemble_sigma)
 
@@ -685,7 +802,7 @@ def get_ensemble_predictions(X, y, ood=False, config=None, ood_loc=0, ood_scale=
 			print('Fold ', fold-1)
 			print('Val RMSE: {:.3f}'.format(val_rmse))
 
-		if config.dataset == 'msd' or 'alzheimers' in config.dataset:
+		if config.dataset == 'msd' or ('alzheimers' in config.dataset):
 			break
 
 		if config.dataset == 'naval' and fold == 6:
@@ -696,7 +813,7 @@ def get_ensemble_predictions(X, y, ood=False, config=None, ood_loc=0, ood_scale=
 	true_values = np.reshape(true_values, (-1, 1))
 	all_entropies = np.reshape(all_entropies, (-1, n_feature_sets))
 
-	print("all_mus : {}\nall_sigmas : {}\ntrue_values : {}\n all_entropies : {}".format(all_mus, all_sigmas, true_values, all_entropies))
+	# print("all_mus : {}\nall_sigmas : {}\ntrue_values : {}\n all_entropies : {}".format(all_mus, all_sigmas, true_values, all_entropies))
 
 	print('Total val rmse', np.mean(all_rmses))
 

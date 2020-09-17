@@ -596,6 +596,5 @@ def _alzheimers_test(config):
     data['1'] = data['1'][:min_len]
     data['2'] = data['2'][:min_len]
     data['y'] = data['y'][:min_len]
-    print(data['2'].shape)
 
     return data

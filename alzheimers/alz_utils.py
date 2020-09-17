@@ -44,11 +44,16 @@ class MeanMetricWrapper(tf.keras.metrics.Mean):
 
 ################# COMPARE FEATURES #################
 
-def normalize_compare_features(compare_train, compare_val, compare_features_size=21):
+def normalize_compare_features(compare_train, compare_val, compare_features_size=21, gender='alzheimers_test_female'):
     sc = StandardScaler()
     sc.fit(compare_train)
     compare_train = sc.transform(compare_train)
-    compare_val = sc.transform(compare_val)
+    if gender == 'alzheimers_test_female':
+        compare_val = sc.transform(compare_val) 
+    else:
+        # compare_val = sc.transform(compare_val)
+        # compare_val = np.random.normal(loc=100, scale=1, size=compare_val.shape)
+        compare_val = compare_val
     pca = PCA(n_components=compare_features_size)
     pca.fit(compare_train)
     compare_train = pca.transform(compare_train)

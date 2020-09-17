@@ -11,7 +11,12 @@ importlib.reload(utils)
 from utils import *
 
 import tensorflow.compat.v1 as tf
-# tf.disable_v2_behavior()
+from opts import Opts
+
+opts = Opts()
+config = opts.parse()
+if config.build_model == 'anc_ens':
+	tf.disable_v2_behavior()
 
 class NN():
 	def __init__(self, 

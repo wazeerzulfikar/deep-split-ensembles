@@ -140,7 +140,7 @@ def get_hyperparams(data_set,hidden_size, activation_fn='relu', is_deep_NN=False
 		hyp['single_data_n_std'] = np.sqrt(0.1)
 
 
-	elif data_set == 'power':
+	elif data_set == 'power_plant':
 		X_dim=4
 		hyp['batch_size'] = 256
 		# general params shared by all

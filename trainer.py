@@ -19,7 +19,7 @@ import dataset
 import utils
 import mc_dropout 
 
-# from alzheimers import alz_utils as alzheimers_utils
+from alzheimers import alz_utils as alzheimers_utils
 
 from anc_ens import anc_ens, hyperparameters, utils as anc_utils, DataGen
 
@@ -37,7 +37,7 @@ def run_all_folds(X, y, train, config):
 	all_rmses = []
 	all_nlls = []
 	all_clusterwise_rmses = []
-	n_feature_sets = len(X)
+	n_feature_sets = config.n_feature_sets
 
 	scale_c = 1 # std of y
 	shift_m = 0 # mean of y
@@ -75,13 +75,14 @@ def run_all_folds(X, y, train, config):
 		x_val = [i[test_index] for i in X]
 		if config.dataset in ['alzheimers_test']:
 			alzheimers_test_data = dataset._alzheimers_test(config)
-			x_val = [np.array(alzheimers_test_data['{}'.format(i)]) for i in range(n_feature_sets)]
+			x_val = [np.array(alzheimers_test_data['{}'.format(i)]) for i in range(3)]
 			y_val = np.array(alzheimers_test_data['y'])
 			print('Alzheimers Testing..')
 			[print('Shape of feature set {} {}'.format(e, np.array(i).shape)) for e,i in enumerate(x_val)]
 
 		if config.dataset in ['alzheimers', 'alzheimers_test']:
 			assert x_train[-1].shape[-1] == 6373, 'not compare'
+			assert x_val[-1].shape[-1] == 6373, 'not compare'
 			x_train[-1], x_val[-1] = alzheimers_utils.normalize_compare_features(x_train[-1], x_val[-1])
 
 		elif config.y_scaling==0:
@@ -184,7 +185,7 @@ def train_a_model(
 
 def train_deep_ensemble(x_train, y_train, x_val, y_val, fold, config, train=False, verbose=0):
 
-	n_feature_sets = len(x_train)
+	n_feature_sets = config.n_feature_sets
 	train_nlls, val_nlls = [], []
 	mus = []
 	featurewise_sigmas = [[] for i in range(n_feature_sets)]
@@ -235,7 +236,7 @@ def train_deep_ensemble(x_train, y_train, x_val, y_val, fold, config, train=Fals
 		y_val = y_val.reshape(-1,1)
 		y_val = y_val*config.scale_c + config.shift_m
 
-		if config.build_model == 'gaussian' and config.mod_split != 'none':
+		if config.build_model == 'gaussian' and config.mod_split != 'none' :
 			gaussian_split_preds = []
 			for i in range(config.n_feature_sets):
 				gaussian_split_preds.append(gaussian_split_models[i](x_val[i]))
@@ -272,7 +273,7 @@ def train_deep_ensemble(x_train, y_train, x_val, y_val, fold, config, train=Fals
 		# Get sigmas from models
 
 		for i in range(n_feature_sets):
-			if config.build_model == 'gaussian' and config.mod_split != 'none':
+			if config.build_model == 'gaussian' and config.mod_split != 'none' :
 				sig = gaussian_split_preds[i].stddev().numpy()
 				sig = sig*config.scale_c
 				featurewise_sigmas[i].append(sig)
@@ -320,8 +321,7 @@ def train_deep_ensemble(x_train, y_train, x_val, y_val, fold, config, train=Fals
 	# shape of mus - (5, 26)
 	# shape of std - (3, 5, 26)
 
-	print("Shape of featurewise sigmas {}".format(np.asarray(featurewise_sigmas).shape))
-	if config.mixture_approximation == 'gaussian' and config.mod_split!='none':
+	if config.mixture_approximation == 'gaussian' and config.mod_split!='none' : 
 		ensemble_mus = np.mean(mus, axis=0).reshape(-1,1)
 		ensemble_sigmas = []
 		for i in range(n_feature_sets):

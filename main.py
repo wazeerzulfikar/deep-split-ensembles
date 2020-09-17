@@ -9,6 +9,12 @@ import utils
 from opts import Opts
 
 def main(config):
+
+	if config.mod_split == 'computation_split' and config.dataset in ['boston', 'wine', 'kin8nm', 'naval', 'protein']:
+		config.hc_threshold = 0.5
+	elif config.mod_split == 'computation_split' and config.dataset in ['cement', 'energy_efficiency', 'power_plant', 'yacht']:
+		config.hc_threshold = 0.75
+
 	data = dataset.load_dataset(config)
 
 	n_feature_sets = len(data.keys()) - 1
@@ -36,11 +42,17 @@ def main(config):
 		config.feature_split_lengths[-1] = 21 # COMPARE features after PCA
 		config.n_folds = 5
 
+	if config.build_model == 'combined_pog' and config.dataset in ['cement', 'protein', 'yacht', 'power_plant']:
+		config.y_scaling = 1
+
 	if config.dataset == 'protein':
 		config.n_folds = 5
 
 	if config.dataset == 'msd':
 		config.n_models = 2
+
+	if config.mod_split == 'none':
+		config.n_feature_sets = 1
 
 	if config.task == 'train':
 		print('Training..')
