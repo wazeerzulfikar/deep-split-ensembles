@@ -1,6 +1,6 @@
 # Why have a Unified Uncertainty? Disentangling it using Deep Split Ensembles
 
-The following readme has simple steps to reproduce the training, evaluation and all the experiments for any of the datasets (also provided as csv files in supplementary material)
+The following readme has simple steps to reproduce the training, evaluation and all the experiments for any of the datasets 
 
 ## Setup
 1. Setup Virtual Environment
@@ -80,10 +80,5 @@ Only available for Power Plant Output and Red Wine Quality
 
 ### ADReSS - Compare features extraction
 
-1. Download the [opensmile](https://www.audeering.com/opensmile/) toolkit.
-2. `tar -zxvf openSMILE-2.x.x.tar.gz`
-3. `cd openSMILE-2.x.x`
-4. `bash autogen.sh`
-5. `make -j4`
-6. `make`
-7. `make install`
+1. Install and setup OpenSmile for Compare features extraction following [COMPARE.md](https://github.com/wazeerzulfikar/ad-mmse/blob/master/COMPARE.md)
+2. Extract compare features
