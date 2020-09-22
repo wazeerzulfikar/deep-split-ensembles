@@ -1,6 +1,4 @@
-# Why have a Unified Uncertainty? Disentangling it using Deep Split Ensembles (NeurIPS 2020)
-
-The code is shared for easy reproducibility and to encourage future work.
+# Why have a Unified Uncertainty? Disentangling it using Deep Split Ensembles
 
 The following readme has simple steps to reproduce the training, evaluation and all the experiments for any of the datasets (also provided as csv files in supplementary material)
 
