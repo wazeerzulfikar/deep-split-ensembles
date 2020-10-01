@@ -102,3 +102,16 @@ Only available for Power Plant Output and Red Wine Quality
 
 1. Install and setup OpenSmile for Compare features extraction following [COMPARE.md](https://github.com/wazeerzulfikar/ad-mmse/blob/master/COMPARE.md)
 2. Extract compare features
+
+## Citation
+
+If you find this project useful for your research, please use the following BibTeX entry.
+
+    @misc{sarawgi2020unified,
+          title={Why have a Unified Predictive Uncertainty? Disentangling it using Deep Split Ensembles}, 
+          author={Utkarsh Sarawgi and Wazeer Zulfikar and Rishab Khincha and Pattie Maes},
+          year={2020},
+          eprint={2009.12406},
+          archivePrefix={arXiv},
+          primaryClass={cs.LG}
+    }
