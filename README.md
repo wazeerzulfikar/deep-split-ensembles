@@ -1,6 +1,6 @@
 # Why have a Unified Uncertainty? Disentangling it using Deep Split Ensembles
 
-The following readme has simple steps to reproduce the training, evaluation and all the experiments for any of the datasets 
+Code for the paper - [https://arxiv.org/abs/2009.12406](https://arxiv.org/abs/2009.12406)
 
 ## Setup
 1. Setup Virtual Environment
