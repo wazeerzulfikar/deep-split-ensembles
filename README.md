@@ -2,6 +2,23 @@
 
 Code for the paper - [https://arxiv.org/abs/2009.12406](https://arxiv.org/abs/2009.12406)
 
+<p align="center">
+<img width="850" height="230" src="img/model_comp_latest.jpeg">  
+</p>
+
+<p align="center">
+<img width="350" src="img/model_params_4.png">  
+</p>
+
+### Toy Regression on 3D Problem
+
+The red points are the observed noisy training samples and the black points are their projections on the respective axes. The grey regions show the predicted mean along with three standard deviations. The disentangled uncertainties have different grey regions on the two dimensions, and are able to `contain` the black points well. This illustrates how decomposed uncertainties can capture disentangled information about the individual noise in the input features
+
+<p align="center">
+<img width="400" src="img/toy3d_a3b3.png">  
+<img width="400" src="img/toy3d_a4b4_1.png">  
+</p>
+
 ## Setup
 1. Setup Virtual Environment
 ```
@@ -21,6 +38,8 @@ source venv/bin/activate
 python main.py train --datasets_dir datasets --dataset boston --model_dir boston_models --verbose 1
 ```
 
+Check for dataset name mapping [below](#further-notes) 
+
 ### Evaluate
 ```
 python main.py evaluate --datasets_dir datasets --dataset boston --model_dir boston_models
@@ -28,14 +47,19 @@ python main.py evaluate --datasets_dir datasets --dataset boston --model_dir bos
 
 ### Experiments
 
-#### Calibration - Defer Simulation
-```
-python main.py experiment --exp_name defer_simulation --plot_path plots --datasets_dir datasets --dataset boston --model_dir boston_models
-```
-
 #### Calibration - Clusterwise OOD
 ```
 python main.py experiment --exp_name clusterwise_ood --plot_path plots --datasets_dir datasets --dataset boston --model_dir boston_models
+```
+
+#### Empirical rule test
+```
+python main.py experiment --exp_name empirical_rule_test --datasets_dir datasets --dataset boston --model_dir boston_models
+```
+
+#### Calibration - Defer Simulation
+```
+python main.py experiment --exp_name defer_simulation --plot_path plots --datasets_dir datasets --dataset boston --model_dir boston_models
 ```
 
 #### Calibration - KL Divergence vs Mode
@@ -53,10 +77,6 @@ python main.py experiment --exp_name toy_regression --plot_path toy --model_dir 
 python main.py experiment --exp_name show_summary --datasets_dir datasets --dataset boston
 ```
 
-#### Empirical rule test
-```
-python main.py experiment --exp_name empirical_rule_test --datasets_dir datasets --dataset boston --model_dir boston_models
-```
 
 ## Further Notes
 
