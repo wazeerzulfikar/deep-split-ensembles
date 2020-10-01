@@ -105,7 +105,7 @@ Only available for Power Plant Output and Red Wine Quality
 
 ## Citation
 
-If you find this project useful for your research, please use the following BibTeX entry.
+If you find this project useful for your research, please use the following BibTeX entry to cite our paper [https://arxiv.org/abs/2009.12406](https://arxiv.org/abs/2009.12406).
 
     @misc{sarawgi2020unified,
           title={Why have a Unified Predictive Uncertainty? Disentangling it using Deep Split Ensembles}, 
