@@ -17,11 +17,11 @@ import scipy.stats as scstats
 import models
 import dataset
 import utils
-import mc_dropout 
+# import mc_dropout 
 
-from alzheimers import alz_utils as alzheimers_utils
+# from alzheimers import alz_utils as alzheimers_utils
 
-from anc_ens import anc_ens, hyperparameters, utils as anc_utils, DataGen
+# from anc_ens import anc_ens, hyperparameters, utils as anc_utils, DataGen
 
 tfd = tfp.distributions
 
@@ -257,6 +257,7 @@ def train_deep_ensemble(x_train, y_train, x_val, y_val, fold, config, train=Fals
 
 		if config.build_model == 'gaussian' and config.mod_split != 'none':
 			mu = [gaussian_split_preds[i].mean().numpy()[:,0] for i in range(config.n_feature_sets)]
+			mu=np.asarray(mu)
 			mu = mu*config.scale_c + config.shift_m
 			gaussian_split_mus.append(mu)
 			mu = np.sum(mu, axis=0) / config.n_feature_sets

@@ -33,7 +33,7 @@ def main(config):
 	if config.build_model == 'mc_dropout':
 		config.n_models = 1
 
-	if config.dataset in ['boston', 'cement', 'power_plant', 'wine', 'yacht', 'kin8nm', 'energy_efficiency', 'naval']:
+	if config.dataset in ['boston', 'cement', 'power_plant', 'wine', 'yacht', 'kin8nm', 'energy_efficiency', 'naval', 'life']:
 		config.units = 50
 	elif config.dataset in ['msd', 'protein', 'toy']:
 		config.units = 100

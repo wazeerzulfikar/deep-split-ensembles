@@ -14,8 +14,8 @@ import models
 import trainer
 import dataset
 import utils
-from extras import evaluator
-from alzheimers import alz_utils as alzheimers_utils
+# from extras import evaluator
+# from alzheimers import alz_utils as alzheimers_utils
 
 tfd = tfp.distributions
 
